@@ -66,3 +66,9 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Private research originals: publish reviewed derivatives only.
+/research/archive/
+/evidence/osc/
+/evidence/reference/
+/evidence/SHA256SUMS

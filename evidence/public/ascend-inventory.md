@@ -4,6 +4,8 @@
 
 This is a derived summary of a user-supplied OSC Ascend inventory for job `8374257` and later user-pasted module/toolchain output. It is not the raw capture and was not produced by assistant access to OSC. The original files remain local under `evidence/osc/ascend/8374257/`, excluded from Git.
 
+**Testbed Scope:** This inventory documents an interim, temporary preliminary testbed on Ohio Supercomputer Center (OSC) Ascend, utilized for initial toolchain and hardware verification while awaiting GPU provisioning at the host lab (**EPFL**). Final experimental validation and deployment will occur on the EPFL host lab infrastructure.
+
 The raw inventory reports capture time 2026-11-07 00:41 UTC (November 6 local time). The later toolchain commands have no independent timestamp or repeated job identity; their association with this allocation comes from the conversation.
 
 Remote usernames, numeric user/group IDs, project codes, node/login hostnames, home and working paths, GPU UUID/serial/PDI, PCI bus address, network endpoints, process IDs, and unrelated system details are withheld. The course notebook, mentor screenshots, original ZIP, and raw evidence are not public artifacts. This summary retains only facts needed to choose and reproduce the next research step.

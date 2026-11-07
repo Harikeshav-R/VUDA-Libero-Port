@@ -12,12 +12,15 @@ This register documents key architectural, methodological, and operational decis
 | **DEC-004** | 2026-11-06 | **Standard API Probe Precedes Low-Level Shims** | Before attempting undocumented `ioctl` interception, shadow channels, or TSG parenting, we must measure and profile unmodified OpenGL and CUDA co-execution under standard Linux drivers to establish empirical ground truth. | **Accepted** |
 | **DEC-005** | 2026-11-06 | **Strict Cluster Safety & Policy Compliance** | All cluster operations must strictly adhere to OSC multi-tenant policies. No kernel module modifications, no driver reloading, no MPS daemons without prior permission, and all Slurm allocations must use placeholder account `YOUR_OSC_ACCOUNT` (without angle brackets) rather than unapproved course accounts. | **Accepted** |
 | **DEC-006** | 2026-11-06 | **Sanitized Public Research Workspace & Derivative Distribution** | The user explicitly approved publishing the research workspace to a public GitHub repository under a sanitized layout. Raw cluster captures, local screenshots, reference archives, and course materials remain local-only (excluded by `.gitignore` in `research/archive/`, `evidence/osc/`, `evidence/reference/`, and `evidence/SHA256SUMS`). Public tracking relies on reviewed sanitized derivatives in `research/reference/` and `evidence/public/`, with redaction of private account codes, hostnames, usernames, and GPU UUIDs. Authorization permits normal git commits and push (no force push). | **Accepted** |
+| **DEC-007** | 2026-11-06 | **OSC Ascend as Temporary Preliminary Testbed Pending EPFL Host Lab GPU Access** | The permanent target research environment and host lab for this project is EPFL. Exploration, allocations, and preliminary environment setup on OSC clusters (Ascend A100, Cardinal H100, Pitzer V100) serve strictly as temporary preliminary testbeds to de-risk baseline execution, toolchains, and initial probes while awaiting EPFL GPU provisioning. All OSC artifacts and setups are treated as disposable preliminary scaffolding. | **Accepted** |
+| **DEC-008** | 2026-11-06 | **Gate 5 assessment does not authorize mutation** | Published `580.95.05` source has TSG/context-share duplication and GSP RPC paths, but actual GL allocations, shared control mappings, complete artifact/design, and site approval remain missing. Proceed with offline research; runtime observation and mutation require separate reviewed scopes. No OSC blanket ban is inferred. | **Accepted** |
+| **DEC-009** | 2026-11-06 | **Correct Gate 4 evidence standard** | GL batch elapsed times and wall-time slowdown do not prove TSG membership, preemption, or absence of active co-execution. Preserve raw captures and correct public interpretations. Gate 4 is partial/inconclusive; registration/mapping alone is not zero-copy image consumption. | **Accepted** |
 
 ---
 
-## 2. Primary Sources Register (S1–S23)
+## 2. Primary Sources Register (S1–S27)
 
-*Note: The primary source literature review was conducted historically on 2026-11-06 and anchored in the detailed feasibility plan at [`research/reference/VUDA_OPENGL_LIBERO_PLAN.md`](reference/VUDA_OPENGL_LIBERO_PLAN.md). These sources are not re-fetched dynamically but serve as the immutable conceptual foundation of the workspace.*
+The historical S1–S23 register remains anchored in the [technical plan](reference/VUDA_OPENGL_LIBERO_PLAN.md). Gate 5 freshly reviewed S1 §§4–7.1, S19, and added S24–S27 below. Historical reviews are not represented as fresh verification.
 
 ### Group A: The VUDA Papers
 - **S1 — VUDA v2 (Controlled Spatial Sharing):** [arXiv:2605.01352v2](https://arxiv.org/html/2605.01352v2) (September 26, 2026).
@@ -58,6 +61,12 @@ This register documents key architectural, methodological, and operational decis
 - **S21 — Bounded Public Artifact Search:** Systematic search of author profiles ([Bin Xu / Xubbbb](https://github.com/Xubbbb), [Jinyu Gu / IPADS](https://ipads.sjtu.edu.cn/pub/members/jinyu_gu)) and GitHub API queries for `"2605.01352"` and `VUDA spatial`. No verified author artifact was located in this bounded search.
 - **S23 — Enterprise GPU Graphics Support Evidence:** [NVIDIA Developer Forum: A100 OpenGL Drawing](https://forums.developer.nvidia.com/t/nvidia-a100-opengl-drawing-issue/196672) and [H100 PCIe Graphics Support](https://forums.developer.nvidia.com/t/h100-pcie-doesnt-have-graphic-support/246884). User reports highlight graphics driver nuances and lack of display heads on datacenter accelerators.
 
+### Gate 5 live source review
+- **S24 — Nsight Systems 2024.7 trace semantics:** [User Guide](https://archive.docs.nvidia.com/nsight-systems/2024.7/UserGuide/index.html), OpenGL Trace, GPU Context Switch, GPU Metrics. OpenGL uses batched `glQueryCounter()` completion timing; device metrics do not identify process/context. This supersedes claims that elapsed-range containment proves preemption.
+- **S25 — OSC User Code of Ethics:** [Authorized Use and Appropriate Use](https://www.osc.edu/supercomputing/support/codeofethics). Requires PI-authorized account purpose and system integrity; does not specifically decide TSG/shadow-channel permission.
+- **S26 — OSC support:** [Technical Support](https://www.osc.edu/resources/technical_support). Verified `oschelp@osc.edu`; inquiry drafted but not sent.
+- **S27 — NVIDIA exact driver source:** [`580.95.05` tree](https://github.com/NVIDIA/open-gpu-kernel-modules/tree/580.95.05), resolved SHA `2b436058a616676ec888ef3814d1db6b2220f2eb`. Verified structures, class headers, constructors, duplication validation and GSP RPC branches are cited in [the driver assessment](GATE5_DRIVER_ASSESSMENT.md). Host source does not establish firmware acceptance or proprietary GL allocation sequence.
+
 ---
 
 ## 3. Hypotheses & Open Technical Questions
@@ -67,10 +76,11 @@ This register documents key architectural, methodological, and operational decis
 - **H-01 (OpenGL Timeslice Group Isolation):**
   *Hypothesis:* The proprietary NVIDIA Linux driver assigns headless EGL OpenGL contexts and CUDA contexts to separate Timeslice Groups (TSGs), causing the graphics/compute engine to time-slice between them at coarse granularity rather than executing them simultaneously on distinct SMs.
   *Validation Plan:* Measure execution timelines using Nsight Systems (`nsys profile --trace=cuda,opengl,osrt --opengl-gpu-workload=true`) on a concurrent EGL/CUDA workload. Note that a lack of observed timeline overlap alone does not prove TSG isolation without confirming channel allocation, resource availability, and the absence of application-level serialization barriers.
+  *Gate 5 update:* Remains unconfirmed for the recorded GL stack. Existing SQLite has no GPU context-switch event or GPU metrics table; GL batch timestamp containment is inconclusive.
 
 - **H-02 (Open-Kernel Module & GSP Compatibility):**
-  *Hypothesis:* On modern NVIDIA datacenter drivers (such as 580.95.05 on RHEL 9), the open-source kernel module delegates hardware channel allocation and scheduling control to the on-chip GPU System Processor (GSP) firmware, potentially preventing user-space `ioctl` channel-parenting manipulation without firmware support.
-  *Validation Plan:* Review driver `nvidia-drm` / `nvidia-uvm` open kernel module source for TSG allocation ioctls; test low-level allocation calls in an isolated environment.
+  *Hypothesis:* GSP/driver validation may constrain the required grouping and control mappings on `580.95.05`; neither compatibility nor impossibility is established.
+  *Gate 5 result:* Reviewed core RM/FIFO source, not just DRM/UVM. `kchangrpapiCopyConstruct_IMPL()` and nonlegacy context-share copying explicitly issue GSP duplication RPCs. Actual GL bindings and control-mapping acceptance remain untested. Future runtime tests require site review and a complete design.
 
 - **H-03 (Interoperability Synchronization Serialization):**
   *Hypothesis:* While CUDA-OpenGL interop (`cudaGraphicsMapResources`) avoids CPU host-memory roundtrips for camera images by retaining buffers in device memory, the associated driver mapping locks and stream synchronization barriers may serialize graphics and compute passes just as strictly as CPU readbacks.
@@ -78,7 +88,7 @@ This register documents key architectural, methodological, and operational decis
 
 - **H-04 (LIBERO Graphics Resource Headroom):**
   *Hypothesis:* MuJoCo's classic rendering pipeline at 128×128 resolution consumes negligible SM compute but relies on fixed-function rasterization and ROP units, leaving substantial compute SM capacity available for policy inference if driver scheduling permits concurrent execution.
-  *Validation Plan:* Measure standalone GPU SM occupancy and throughput during intensive MuJoCo offscreen rendering loops using supported Nsight Systems GPU workload metrics (`--opengl-gpu-workload=true`) or a dedicated graphics profiler, subject to cluster toolchain support.
+  *Validation Plan:* Measure standalone resource use with supported hardware metrics and representative MuJoCo shader work. `--opengl-gpu-workload=true` captures batched timing, not SM occupancy by itself.
 
 ### Open Technical Questions
 
@@ -93,7 +103,7 @@ This register documents key architectural, methodological, and operational decis
 ### EXP-001: OSC Ascend Environment & Toolchain Inventory
 - **Date:** 2026-11-06 (UTC 2026-11-07 00:41)
 - **Status:** Completed
-- **Execution Context:** Interactive Slurm allocation on OSC Ascend cluster, compute node `NODE_A`, Job ID `8374257`. Executed under placeholder account `YOUR_OSC_ACCOUNT` (coursework allocation redacted).
+- **Execution Context:** Interactive Slurm allocation on OSC Ascend cluster (temporary preliminary testbed awaiting EPFL GPU access), compute node `NODE_A`, Job ID `8374257`. Executed under placeholder account `YOUR_OSC_ACCOUNT` (coursework allocation redacted).
 - **Artifacts:**
   - Public sanitized inventory: [`evidence/public/ascend-inventory.md`](../evidence/public/ascend-inventory.md)
   - Raw system inventory: `evidence/osc/ascend/8374257/osc-system-info-ascend-8374257.txt` (local-only uncommitted capture)
@@ -106,37 +116,71 @@ This register documents key architectural, methodological, and operational decis
   - Toolchain Availability: Native compilers (`cc`, `gcc`, `g++`, `cmake`) and pkg-config (`egl 1.5`, `gl 1.2`) are present in system `/usr/bin` paths (compiler version strings were not queried in the inventory; GCC version in inventory reflects driver build toolchain).
   - Module Verification: System modules `cuda/12.8.1` and `nvhpc/25.1` are directly loadable. The user interactively loaded `cuda/12.8.1` and verified `nvcc` release 12.8 V12.8.93 via follow-up transcription.
   - Python Environment: Active system Python (`/usr/bin/python`, version 3.9.21) lacks package metadata for domain robotics/ML packages (`torch`, `mujoco`, `robosuite`, `libero`, `rlinf`, `PyOpenGL`, `glfw`).
-- **Limitations:** This was a static environment inventory and user transcription. No GPU compute kernels or graphics contexts were initialized or benchmarked. The current repository contains no automated build or test suite; EXP-002 and EXP-003 represent proposed experimental designs for future implementation.
+- **Limitations:** EXP-001 was inventory/transcription only, without GPU workloads. Later EXP-002/EXP-003 entries record native execution. Native build files now exist; no automated test suite exists.
 
 ---
 
-### EXP-002: Standalone Native C++/CUDA/EGL Correctness & Timing Probe (Proposed)
-- **Status:** Proposed / Specification Stage
-- **Objective:** Establish the first empirical baseline of headless EGL OpenGL rendering and CUDA compute execution on the allocated A100 GPU under standard APIs.
-- **Experimental Design:**
-  1. *EGL Device Binding:* Initialize headless EGL binding explicitly to the physical GPU allocated by Slurm (matching GPU UUID and PCI bus ID from `nvidia-smi` / `nvidia-smi -L` and validating with `cudaGLGetDevices`). Create an offscreen Framebuffer Object (FBO) with standard RGBA8 color attachment at 128×128 (matching LIBERO resolution).
-  2. *Rendering Workload:* Render a known shaded geometric scene with programmable shaders. Read back pixel buffer to CPU and assert output against known pixel values.
-  3. *CUDA Workload:* Launch a configurable, low-resource synthetic compute kernel (avoiding saturated, arbitrary long-duration kernels). Verify numerical correctness.
-  4. *Execution Modes:*
-     - Solo EGL rendering.
-     - Solo CUDA compute.
-     - Serial interleaved execution (Render, then Compute sequentially).
-     - Multi-threaded independent execution (separate CPU threads issuing Render and Compute calls concurrently to the same GPU).
-     - Multi-process independent execution (separate processes issuing Render and Compute calls).
-  5. *Measurements:* Wall-clock total duration, per-iteration latency distribution, and CPU/GPU memory footprint.
-- **Limitations:** Independent workload submission and wall-clock overlap alone do not prove simultaneous hardware execution due to CPU submission latencies and coarse timing granularity. Hardware-level verification requires profiler timeline analysis under EXP-003.
-
+### EXP-001b: Live Remote Environment & Toolchain Verification on Ascend Login Node
+- **Date:** 2026-11-06 (UTC 2026-11-07 02:00)
+- **Status:** Completed
+- **Execution Context:** Historical ledger records a remote Ascend login-node session (temporary preliminary testbed while awaiting EPFL GPU provisioning). Private login/account/home identifiers are withheld; this review did not reconnect.
+- **Verified Findings:**
+  - Storage & Quota: Historical ledger reports 500 GB quota with 21 GB used (479 GB free), 1,000,000 inode quota with 258,000 used, and accessible scratch/project storage. Private paths withheld.
+  - Native Compilers: `gcc (GCC) 11.5.0`, `g++ (GCC) 11.5.0`, `cmake 3.26.5`, `git 2.47.3`.
+  - Native Graphics Headers: `/usr/include/EGL/egl.h`, `/usr/include/GL/gl.h`, `/usr/include/KHR/khrplatform.h` verified. `g++ -lEGL -lGL` successfully compiles and links EGL context calls.
+  - CUDA Toolchain: `module load cuda/12.8.1` exposes `nvcc release 12.8, V12.8.93` and includes `$CUDA_HOME/include/cudaGL.h`, `cuda_gl_interop.h`, `cuda.h`, `cuda_runtime.h`. Tested compilation of hybrid CUDA + EGL code via `nvcc -x cu -lEGL -lGL -lcudart` succeeded (exit code 0).
+  - Profiler Toolchain: `module load nvhpc/25.1` directly loadable, provides `nsys 2024.7.1.84`.
+  - Python / Conda: `module load miniconda3/24.1.2-py310` provides Conda 24.1.2 and Python 3.10.13.
+  - Workspace Setup: Staged directory layout at `~/vuda-workspace/` (`scripts/`, `src/`, `build/`, `logs/`, `evidence/`), copied `scripts/pitzer-diagnostics.sh`, created `README.md` (highlighting temporary status pending EPFL access) and `scripts/env-setup.sh`.
 ---
 
-### EXP-003: Nsight Systems Concurrency & Context-Switch Profiling (Proposed)
-- **Status:** Proposed / Gated on EXP-002 Implementation and Profiler Support Review
-- **Objective:** Collect microsecond-accurate hardware timeline traces of concurrent EGL rendering and CUDA kernel execution to determine whether driver time-slicing or spatial execution occurs.
-- **Requirements:** Interactive Slurm allocation on Ascend with `--gres=nsight` enabled and `nvhpc/25.1` loaded. Profiling procedure will follow the supported command template documented in the OSC Runbook (`docs/OSC_RUNBOOK.md`).
-- **Evaluation Criteria:**
-  - Do OpenGL draw calls and CUDA kernels show overlapping execution on the GPU hardware timeline? (Note: API interval overlap on the host timeline cannot prove active spatial execution on the GPU; GPU workload metrics and context switch events must be evaluated together.)
-  - Does the GPU Context Switch trace reveal preemption events between graphics and compute contexts?
-
+### EXP-002: Standalone Native C++/CUDA/EGL Correctness & Timing Probe
+- **Date:** 2026-11-06 (UTC 2026-11-07 02:12)
+- **Status:** Completed
+- **Execution Context:** Slurm batch job `8374921` on OSC Ascend (temporary testbed awaiting EPFL), node identifier withheld, A100-PCIE-40GB, driver `580.95.05`, CUDA `12.8.1`.
+- **Artifacts:**
+  - Public sanitized results: [`evidence/public/exp002-probe-results.md`](../evidence/public/exp002-probe-results.md)
+  - Raw execution log: `evidence/osc/ascend/8374921/vuda_exp002_8374921.log` (local-only uncommitted capture)
+  - Probe source code: `src/probe/` (`egl_renderer.cpp`, `cuda_compute.cu`, `benchmark_runner.cpp`, `main.cpp`, `Makefile`, `CMakeLists.txt`)
+- **Summary of Findings:**
+  - *Correctness:* Verified offscreen EGL FBO rendering (128×128 RGBA8) with programmable shaders and pixel assertion against expected RGB values. Verified CUDA arithmetic kernel numerical precision against host CPU.
+  - *Interop capability (Gate 6 prerequisite):* Renderbuffer registration, mapping, and `cudaArray_t` retrieval succeeded. CUDA-side pixel consumption, copy-free behavior, and image correctness after handoff were not checked.
+  - *Solo Baselines (Gate 3):* Solo EGL Render = 20.04 ms (40.0 μs mean, 24,950 fps); Solo CUDA Compute = 14.27 ms (28.5 μs mean, 35,028 ips). Theoretical zero-overhead serial sum = 34.31 ms.
+  - *Serial overhead:* Serial alternation took 230.38 ms, about 6.7× the solo sum. These timings do not uniquely attribute the overhead to context switching or pipeline flushing.
+  - *Concurrent Multi-Threaded:* Multi-threaded concurrent submission from separate host threads took 92.27 ms (5,419 pairs/s), delivering a **2.497× throughput speedup** over serial interleaved execution.
+  - *Scheduling interpretation corrected:* `34.31 / 92.27 = 0.372×` is the solo-sum/concurrent-time ratio. Wall times do not prove TSG identities or time-sharing.
+- **Limitations & Next Steps:** Single-run synthetic timing; concurrent latency columns reflect the render thread. No low-resource headroom, cross-process baseline, repeated steady-state measurements, or active spatial execution established. EXP-003 collected timelines but did not resolve those limits.
 ---
+
+### EXP-003: Nsight Systems Timeline Capture
+- **Date:** 2026-11-06 (UTC 2026-11-07 02:58)
+- **Status:** Capture/report produced; final export failed; scheduling verdict inconclusive
+- **Execution Context:** Slurm job `8375678` with `--gres=nsight`, OSC Ascend temporary testbed, node identifier withheld, A100-PCIE-40GB, Nsight Systems `2024.7.1.84`.
+- **Artifacts:**
+  - Public sanitized results: [`evidence/public/exp003-profile-results.md`](../evidence/public/exp003-profile-results.md)
+  - Raw trace and reports: `evidence/osc/ascend/8375678/` (`vuda_exp003_profile_8375678.nsys-rep`, `vuda_exp003_profile_8375678.sqlite`, text summaries, and execution log; local-only uncommitted capture)
+  - Batch script: `~/vuda-workspace/scripts/run_profile_exp003.sh`
+- **Summary of Findings:**
+  - *Timeline data:* Preserved export contains 341 CUDA kernels and 666 GL workload batches with NVTX annotations.
+  - *Selected elapsed ranges:* GL batches labeled `glClear` span roughly 608 μs versus selected solo ranges around 34 μs. NVIDIA documents that such labels time batches, not isolated operations.
+  - *Containment verified offline:* Four published CUDA-within-GL interval examples match the SQLite data. Neither containment nor inflation proves graphics suspension, TSG identity, or active spatial overlap.
+  - *Export failure:* Log ends with `Exportation error: File already exists` and exit code 1. Existing database/report pairing requires a future export to a new path.
+  - *Corrected verdict:* Gate 4 partial. No GPU context-switch event or GPU metrics table exists in this export. Profiled wall times (64.45 ms serial, 67.92 ms concurrent) differ from EXP-002; do not transfer its unprofiled speedup.
+
+### EXP-004: Gate 5 Offline Driver, Policy, and Trace Assessment
+- **Date:** 2026-11-06 local
+- **Status:** Assessment recorded; runtime redirection blocked
+- **Question:** Can VUDA v2's internal mechanism plausibly support native OpenGL on the recorded A100/open-driver/GSP stack, and what may be tested safely?
+- **Method and exact inputs:** Read current/historical project documents, actual probe code, local raw EXP-002/EXP-003 outputs and read-only SQLite; reviewed VUDA v2 §§4–7.1, NVIDIA `580.95.05` source SHA `2b436058a616676ec888ef3814d1db6b2220f2eb`, Nsight 2024.7 semantics, OSC GPU guide/ethics/support. No remote login, GPU job, driver-control operation, or support message.
+- **Artifacts:** [Gate 5 assessment and SQL audit](GATE5_ASSESSMENT.md); [exact-release driver map](GATE5_DRIVER_ASSESSMENT.md). Existing raw inputs remain private and unchanged; their review hashes are recorded separately under `evidence/osc/ascend/gate5-inputs.sha256`.
+- **Source findings:** RM duplication and allocation wrappers, channel-group/context-share classes, explicit GSP duplication RPC paths, VAS relationships, and validation/lifetime branches exist. Actual GL objects and control mappings are not observed. No portable grafting/SCG command recipe was established.
+- **Offline observations:** 341 kernels/666 GL batches; phase-filtered `glClear`-labeled batches: solo 99 (mean 39.604 μs), concurrent 90 (mean 536.500 μs). No `GPU_CONTEXT_SWITCH_EVENTS` or `GPU_METRICS`; enumeration labels are not events. Four interval examples verified.
+- **Ruling:** Proceed to Gate 5 research despite incomplete Gate 4 proof because static assessment does not mutate the device. Keep Gate 4 partial rather than assuming need for a shim; cost if wrong is additional baseline work, not unsupported device changes.
+- **Ruling:** Treat GSP as a compatibility boundary, not an impossibility proof. Require site-specific approval, artifact or complete reviewed design, and GL/control-mapping evidence before mutation; cost is delaying a potentially viable experiment.
+- **Policy result:** Reviewed OSC guidance neither explicitly approves nor bans the proposed internals. PI-authorized account and system integrity rules apply. Project precautions are not OSC quotations. Specific inquiry drafted, not sent; EPFL requires its own review.
+- **Next decision:** Obtain site response and author implementation details, strengthen Gate 4, then consider an approved non-mutating own-process observer before any Vulkan reproduction/OpenGL mutation.
+- **Exercised verification:** Read-only SQLite queries verified row counts, phase aggregates, missing event/metric tables and four interval examples. Public manifest: 9/9; original private manifest: 13/13; historical archive manifest: 7/7; separate Gate 5 input manifest: 9/9. Collector `bash -n` passed, embedded Python parsed, and missing-allocation smoke exited 2 with the expected refusal. All 59 local links/anchors across 14 public Markdown files resolved. No GPU build/run or shim smoke was performed; no native source changed.
+- **Final review:** Independent read-only reviewer reported no material findings after checking the exact-release ABI/class fields, GSP duplication bounds, OSC policy wording, interop limits, and SQLite aggregates. Review covers the assessment, not unrun runtime compatibility.
 
 ### Future Experiment Entry Template
 

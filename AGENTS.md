@@ -4,7 +4,9 @@
 
 Investigate whether native EGL/OpenGL rendering and CUDA model computation can execute simultaneously on one NVIDIA GPU, and whether VUDA's mechanism can enable or control that execution for LIBERO. The mentor explicitly requires **spatial sharing**, not merely GPU rendering, same-device placement, or time-sharing. A well-supported negative result is valid.
 
-This repository is a research workspace, not a working VUDA implementation. At this handoff, it contains research, raw machine inventory, user-reported toolchain output, and a read-only inventory collector. No native rendering/CUDA probe, simulator integration, scheduler shim, model benchmark, or GPU concurrency result has been produced. The latest request authorized saving and organizing research and writing this guide; it did not authorize remote jobs or implement the previously proposed probe.
+**Host Lab vs. Temporary Cluster Testbed:** The primary target research environment is the host lab at **EPFL**. Exploration and preliminary setup on Ohio Supercomputer Center (OSC) systems (Ascend, Cardinal, Pitzer) are strictly **temporary preliminary testbeds** while awaiting EPFL GPU access. All OSC tooling, allocations, and baselines serve as disposable or preparatory exploration to de-risk the investigation before migrating to the permanent EPFL infrastructure.
+
+This repository is a research workspace, not a working VUDA implementation. Native EGL/CUDA probe code and EXP-002/EXP-003 captures now exist. Gate 4 remains partial: elapsed GL batch ranges do not prove TSG membership or active spatial execution. Gate 5's source/policy assessment is recorded; runtime redirection remains blocked on implementation details and site approval. No simulator integration, scheduler shim, or real model benchmark exists.
 
 ## Start here
 
@@ -12,7 +14,7 @@ This repository is a research workspace, not a working VUDA implementation. At t
 2. Read [research/RESEARCH_LOG.md](research/RESEARCH_LOG.md) before new research or experiments. It tracks reviewed sources, decisions, unresolved questions, and experiment status. Extend an existing entry instead of repeating a completed search without a reason.
 3. For technical claims about VUDA, LIBERO, scheduling, image transfer, or hardware portability, read the relevant section of [the historical technical plan](research/reference/VUDA_OPENGL_LIBERO_PLAN.md). Its S1–S23 citations are the existing source register. [Historical session notes](research/reference/VUDA_SESSION_NOTES.md) preserve mentor wording, interpretation corrections, and earlier decisions.
 4. For OSC operations, read [docs/OSC_RUNBOOK.md](docs/OSC_RUNBOOK.md) and the evidence for the actual allocation. Do not infer the current allocation from a past node name.
-5. Before editing code in a future implementation, inspect its actual build configuration and interfaces. There is currently no application build or test suite to reuse.
+5. Before editing probe code, inspect `src/probe/` build files and interfaces. No automated application test suite exists. Before internal driver work, read [Gate 5 assessment](research/GATE5_ASSESSMENT.md) and [exact-release source map](research/GATE5_DRIVER_ASSESSMENT.md); require resolved control mappings and site review before mutation.
 
 Historical plans contain restrictions such as “do not implement in this planning session.” Those describe the earlier request, not a permanent ban on an explicitly requested future implementation. Preserve the historical documents; record changed decisions in the current ledger.
 
@@ -38,7 +40,7 @@ The archived collector is an intentional snapshot; the active collector may evol
 ## Evidence discipline
 
 - Classify claims as observed raw output, user report, cited source finding, inference, or untested hypothesis. A command recommendation is not an executed command.
-- Attribute OSC results to the user. The assistant has not connected to OSC or run its GPU workloads.
+- Attribute the first inventory/toolchain report to user-supplied evidence. Later ledger entries record remote probe/profile work; raw captures corroborate output, not every actor. State whether the current session actually connected or only reviewed existing evidence.
 - Record capture time separately from conversation date. Job 8374257's inventory says 2026-11-07 00:41 UTC, corresponding to November 6 local time. The later toolchain transcript has no independent timestamp.
 - Preserve raw files byte-for-byte. Put annotations and interpretation in sidecars or the ledger. Correct mistaken conclusions without rewriting evidence.
 - Capture repository/fork/commit, launch command, configuration, software versions, GPU UUID/PCI identity, allocation grants, seeds, inputs, and output paths for every future experiment.
@@ -79,8 +81,7 @@ For performance, follow the historical plan's warmup and repeated steady-state m
 
 ## Current target and operational safety
 
-Observed target: Ascend job 8374257, A100-PCIE-40GB, compute capability 8.0, MIG disabled, NVIDIA open driver/GSP 580.95.05. The user later loaded `cuda/12.8.1` and reported nvcc `V12.8.93`. NVIDIA EGL/OpenGL libraries and system C/C++/CMake paths exist, but no compilation or graphics execution has been demonstrated. Read evidence rather than assuming later allocations match.
-
+Recorded targets include Ascend jobs 8374257, 8374921, and 8375678: A100-PCIE-40GB, compute capability 8.0, NVIDIA open driver/GSP 580.95.05, CUDA toolkit 12.8.1. Later probes demonstrate native NVIDIA EGL/OpenGL and synthetic CUDA, not LIBERO or spatial sharing. OSC remains temporary pending EPFL access. Read evidence rather than assuming a later allocation matches.
 Use only the allocated GPU and respect Slurm bindings. CUDA ordinal zero, `SLURM_JOB_GPUS`, EGL enumeration indices, and Linux NVIDIA device minors are not interchangeable. Match UUID or PCI identity; this allocation already shows differing ordinal/minor identifiers.
 
 Run GPU workloads only in an allocated compute-node shell. Verify hostname and allocation identity. A CPU-only OnDemand/Code Server job is not a GPU allocation. Inspect versioned modules before loading; preserve the initial inventory environment. `nvidia-smi`'s CUDA header is driver compatibility information, not the chosen toolkit/runtime.
@@ -100,7 +101,7 @@ After any substantive research or run:
 5. Verify changed scripts/code through relevant local checks and an actual target smoke run where available. State which target-dependent checks remain unexecuted.
 6. Update preservation checksums for new or intentionally changed tracked evidence; retain historical manifests. End with exercised checks and concrete blockers, not claims of an unrun port.
 
-For this documentation-only workspace, validate public checksums, active collector shell syntax, and public Markdown links. Where private originals are present, validate their separate archive/evidence checksums as well. Future native code must gain explicit build/run instructions and correctness checks before being called usable. Do not create placeholder implementations or fake scheduler fallbacks to fill missing research.
+For documentation-only changes, validate public checksums, collector shell syntax, and public Markdown links. Where private originals are present, validate their separate manifests. Native changes require target compilation and correctness/smoke evidence; the Gate 5 source assessment alone is not runtime proof. Do not create placeholder implementations or fake scheduler fallbacks to fill missing research.
 
 ## Public/private publication boundary
 

@@ -1,0 +1,250 @@
+{
+  "experiment": "EXP-008",
+  "baseline_rejection_cases_passed": 0,
+  "candidate_rejection_cases_passed": 8,
+  "regression_cases": [
+    {
+      "case": "solo_render_output",
+      "baseline_returncode": 0,
+      "baseline_timed_out": false,
+      "baseline_injection_reached": true,
+      "candidate_returncode": 1,
+      "candidate_timed_out": false,
+      "candidate_injection_reached": true
+    },
+    {
+      "case": "solo_compute_output",
+      "baseline_returncode": 0,
+      "baseline_timed_out": false,
+      "baseline_injection_reached": true,
+      "candidate_returncode": 1,
+      "candidate_timed_out": false,
+      "candidate_injection_reached": true
+    },
+    {
+      "case": "serial_render_output",
+      "baseline_returncode": 0,
+      "baseline_timed_out": false,
+      "baseline_injection_reached": false,
+      "candidate_returncode": 1,
+      "candidate_timed_out": false,
+      "candidate_injection_reached": true
+    },
+    {
+      "case": "serial_compute_output",
+      "baseline_returncode": 0,
+      "baseline_timed_out": false,
+      "baseline_injection_reached": false,
+      "candidate_returncode": 1,
+      "candidate_timed_out": false,
+      "candidate_injection_reached": true
+    },
+    {
+      "case": "concurrent_render_output",
+      "baseline_returncode": 0,
+      "baseline_timed_out": false,
+      "baseline_injection_reached": false,
+      "candidate_returncode": 1,
+      "candidate_timed_out": false,
+      "candidate_injection_reached": true
+    },
+    {
+      "case": "concurrent_compute_output",
+      "baseline_returncode": 0,
+      "baseline_timed_out": false,
+      "baseline_injection_reached": false,
+      "candidate_returncode": 1,
+      "candidate_timed_out": false,
+      "candidate_injection_reached": true
+    },
+    {
+      "case": "cuda_worker_failure",
+      "baseline_returncode": 0,
+      "baseline_timed_out": false,
+      "baseline_injection_reached": true,
+      "candidate_returncode": 1,
+      "candidate_timed_out": false,
+      "candidate_injection_reached": true
+    },
+    {
+      "case": "egl_worker_failure",
+      "baseline_returncode": null,
+      "baseline_timed_out": true,
+      "baseline_injection_reached": true,
+      "candidate_returncode": 1,
+      "candidate_timed_out": false,
+      "candidate_injection_reached": true
+    }
+  ],
+  "unprofiled_repetitions_per_size": 5,
+  "iterations": 500,
+  "warmup_solo_and_serial": 50,
+  "concurrent_independent_warmup": false,
+  "intensity": 100,
+  "render_size": [
+    128,
+    128
+  ],
+  "summary": {
+    "1024": {
+      "Solo EGL Render": {
+        "wall_ms_median": 12.82,
+        "wall_ms_range": [
+          12.76,
+          19.27
+        ],
+        "mean_us_median": 25.6,
+        "p50_us_median": 20.0,
+        "p95_us_median": 21.0,
+        "p99_us_median": 97.8,
+        "throughput_median": 39000.7
+      },
+      "Solo CUDA Compute": {
+        "wall_ms_median": 5.39,
+        "wall_ms_range": [
+          5.38,
+          5.75
+        ],
+        "mean_us_median": 10.7,
+        "p50_us_median": 10.7,
+        "p95_us_median": 11.1,
+        "p99_us_median": 11.5,
+        "throughput_median": 92765.1
+      },
+      "Serial Interleaved": {
+        "wall_ms_median": 169.7,
+        "wall_ms_range": [
+          169.49,
+          183.01
+        ],
+        "mean_us_median": 339.4,
+        "p50_us_median": 333.7,
+        "p95_us_median": 335.6,
+        "p99_us_median": 342.7,
+        "throughput_median": 2946.4
+      },
+      "Concurrent EGL Render": {
+        "wall_ms_median": 149.46,
+        "wall_ms_range": [
+          65.4,
+          150.3
+        ],
+        "mean_us_median": 279.2,
+        "p50_us_median": 322.6,
+        "p95_us_median": 323.6,
+        "p99_us_median": 324.3,
+        "throughput_median": 3345.3
+      },
+      "Concurrent CUDA Compute": {
+        "wall_ms_median": 149.46,
+        "wall_ms_range": [
+          65.4,
+          150.3
+        ],
+        "mean_us_median": 275.8,
+        "p50_us_median": 322.6,
+        "p95_us_median": 323.7,
+        "p99_us_median": 324.6,
+        "throughput_median": 3345.3
+      }
+    },
+    "262144": {
+      "Solo EGL Render": {
+        "wall_ms_median": 12.67,
+        "wall_ms_range": [
+          12.62,
+          24.31
+        ],
+        "mean_us_median": 25.3,
+        "p50_us_median": 19.9,
+        "p95_us_median": 21.0,
+        "p99_us_median": 90.5,
+        "throughput_median": 39465.9
+      },
+      "Solo CUDA Compute": {
+        "wall_ms_median": 10.66,
+        "wall_ms_range": [
+          10.64,
+          10.7
+        ],
+        "mean_us_median": 21.3,
+        "p50_us_median": 21.2,
+        "p95_us_median": 21.6,
+        "p99_us_median": 22.7,
+        "throughput_median": 46916.0
+      },
+      "Serial Interleaved": {
+        "wall_ms_median": 175.02,
+        "wall_ms_range": [
+          174.87,
+          177.82
+        ],
+        "mean_us_median": 350.0,
+        "p50_us_median": 344.2,
+        "p95_us_median": 346.3,
+        "p99_us_median": 352.3,
+        "throughput_median": 2856.9
+      },
+      "Concurrent EGL Render": {
+        "wall_ms_median": 165.76,
+        "wall_ms_range": [
+          165.39,
+          177.7
+        ],
+        "mean_us_median": 311.6,
+        "p50_us_median": 333.2,
+        "p95_us_median": 334.1,
+        "p99_us_median": 334.7,
+        "throughput_median": 3016.4
+      },
+      "Concurrent CUDA Compute": {
+        "wall_ms_median": 165.76,
+        "wall_ms_range": [
+          165.39,
+          177.7
+        ],
+        "mean_us_median": 309.8,
+        "p50_us_median": 333.2,
+        "p95_us_median": 334.1,
+        "p99_us_median": 336.9,
+        "throughput_median": 3016.4
+      }
+    }
+  },
+  "limits": "Fixed-count, same-process, static final pixels and seven CUDA samples; no per-iteration freshness, full-buffer proof, equal-duration controls, new profile, active-spatial-sharing or TSG verdict. Concurrent worker throughputs share joint wall envelope.",
+  "job_id": "8391277",
+  "scheduler_state": "COMPLETED",
+  "scheduler_exit": "0:0",
+  "scheduler_elapsed_seconds": 42,
+  "capture_start_utc": "2026-11-08T01:19:15Z",
+  "capture_end_utc": "2026-11-08T01:19:53Z",
+  "gpu_model": "NVIDIA A100-PCIE-40GB",
+  "driver_version": "580.95.05",
+  "toolkit": "12.8.1 (nvcc V12.8.93)",
+  "host_compiler": "g++ 11.5.0",
+  "allocated_cpus": 5,
+  "allocated_memory_gib": 16,
+  "physical_identity_guard": "CUDA/EGL UUID and selected NVML UUID/PCI matched; identifiers withheld. No new profiler identity capture.",
+  "repository_origin": "git@github.com:Harikeshav-R/VUDA-Libero-Port.git",
+  "base_commit": "6c34e5b8af5ec9d1dd0aa8c3ae47f9bd5e1c2918",
+  "effective_source_sha256": {
+    "src/probe/egl_renderer.h": "c19988cf401d6f50512e04bc1e1995ca032d49df2e165e0810bd3f8ccbda3e35",
+    "src/probe/egl_renderer.cpp": "3408760df324e48ff4c7850929c2e5171f439ec8df5ceed737928db98292f9f5",
+    "src/probe/cuda_compute.h": "8ca830f4bb82fc98b642abc3cd84dad654dcf626ef765d20d5fff8bd17e51c0c",
+    "src/probe/cuda_compute.cu": "7583989b4dfaac65e2a13a9273bcdcaacf315c0855b772047375d8dae23eb078",
+    "src/probe/benchmark_runner.h": "dd5e381f30006a2cc2c5d8ea95546d60fe01a957b67848a602d4bcc2b3464a9b",
+    "src/probe/benchmark_runner.cpp": "4f2e332abb08f3fee02fe59ad5bb6833b6a25d698893746afd2d0fa482e664e5",
+    "src/probe/main.cpp": "10fa4b76925065b6b7684767dd5d986945029b745649e0dfa7307b2f85abdc27",
+    "src/probe/Makefile": "03cb99342dbcab098a42ac8f9dde66be7ccdc6ad4db78d2a14e1daa533ee81ab",
+    "src/probe/CMakeLists.txt": "c89b1d3a46a071db0c9f4d7ff704578953b1b222d0f59d8d68ad58156d84620f"
+  },
+  "executed_binary_sha256": "981843496b2d2c753c4250273545b93bce57bc22841ee3b21518cecaae3e5df6",
+  "rejection_audit": "All repaired cases exited exactly 1 without timeout/report; expected preceding mode checks completed. Four original serial/concurrent injections were not reached because readbacks were absent.",
+  "regression_configuration": {
+    "iterations": 5,
+    "warmup_solo_and_serial": 2,
+    "elements": 1024,
+    "intensity": 100,
+    "process_timeout_seconds": 8
+  }
+}

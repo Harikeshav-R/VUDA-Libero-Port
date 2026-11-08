@@ -17,6 +17,8 @@ struct BenchmarkConfig {
     int cuda_intensity = 100;
 };
 
+#include <utility>
+
 struct TimingStats {
     std::string name;
     int iterations;
@@ -46,7 +48,7 @@ private:
     TimingStats runSoloRender();
     TimingStats runSoloCompute();
     TimingStats runSerialInterleaved();
-    TimingStats runConcurrentMultiThreaded();
+    std::pair<TimingStats, TimingStats> runConcurrentMultiThreaded();
 
     BenchmarkConfig config_;
     EGLRenderer renderer_;
@@ -55,6 +57,7 @@ private:
     TimingStats stats_solo_render_;
     TimingStats stats_solo_compute_;
     TimingStats stats_serial_;
-    TimingStats stats_concurrent_;
+    TimingStats stats_concurrent_render_;
+    TimingStats stats_concurrent_compute_;
     bool interop_supported_;
 };

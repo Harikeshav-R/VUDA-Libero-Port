@@ -109,17 +109,22 @@ bool CudaCompute::initialize(int target_device) {
     return true;
 }
 
+#include <stdexcept>
+
 void CudaCompute::launchCompute(cudaStream_t stream) {
     int block_size = 256;
     int grid_size = (num_elements_ + block_size - 1) / block_size;
     compute_workload_kernel<<<grid_size, block_size, 0, stream>>>(d_out_, d_in_, num_elements_, compute_intensity_);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("CUDA kernel launch failed: ") + cudaGetErrorString(err));
+    }
 }
 
 void CudaCompute::synchronize(cudaStream_t stream) {
-    if (stream) {
-        cudaStreamSynchronize(stream);
-    } else {
-        cudaDeviceSynchronize();
+    cudaError_t err = stream ? cudaStreamSynchronize(stream) : cudaDeviceSynchronize();
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("CUDA synchronize failed: ") + cudaGetErrorString(err));
     }
 }
 

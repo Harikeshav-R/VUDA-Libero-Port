@@ -41,12 +41,17 @@ int main(int argc, char** argv) {
         }
     }
 
-    BenchmarkRunner runner(config);
-    if (!runner.setup()) {
-        std::cerr << "Probe setup failed!" << std::endl;
+    try {
+        BenchmarkRunner runner(config);
+        if (!runner.setup()) {
+            std::cerr << "Probe setup failed!" << std::endl;
+            return 1;
+        }
+
+        runner.runAll();
+    } catch (const std::exception& e) {
+        std::cerr << "[BenchmarkRunner] Error: " << e.what() << std::endl;
         return 1;
     }
-
-    runner.runAll();
     return 0;
 }

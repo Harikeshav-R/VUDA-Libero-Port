@@ -60,6 +60,24 @@ The EXP-003 log ends with `Exportation error: File already exists` and exit code
 
 **Gate 4 is therefore partial:** profiling collection exists, but the claimed root cause and active co-execution verdict remain inconclusive. Gate 3 passes the bounded native smoke/baseline milestone only. Gate 6 remains partial at registration/mapping, before verified image consumption.
 
+### November 7 follow-up: collection settings and compatibility warnings
+
+The [EXP-005 read-only metadata audit](../evidence/public/exp005-trace-metadata-audit.json) found `COLLECT_GPU_CTX_SW_TRACE=false`. Therefore, absent GPU context-switch events do not show a failed or denied capture attempt. GL workload collection was enabled. Nsight `2024.7.1.84` warned that CUDA driver compatibility version `13.0` was unsupported and that it would collect CUDA traces using libraries for `12.6`. This warning is separate from the recorded toolkit `12.8.1`; it neither proves all existing GPU events wrong nor establishes adequate support for a decisive new run. CPU sampling was throttled four times.
+
+Export metadata records the expected basenames, UTC `2026-11-07T02:58:49`, and append/lazy settings. These reinforce consistency but do not authenticate the preserved report/database pairing. No local `nsys` executable was available for fresh export. The [corrected capture protocol](GATE4_CAPTURE_PROTOCOL.md) keeps compatibility, collection capability, and active-execution proof as separate gates. This follow-up did not connect to OSC or run a GPU workload.
+
+### EXP-006: fresh export and live tool discovery
+
+The [live follow-up](../evidence/public/exp006-live-prerequisites.md) exported the hash-matched preserved report to a new destination using the original exporter version. All 91 table schemas and all 90 non-export-metadata row multisets matched the original SQLite. This resolves the earlier content-correspondence uncertainty without overwriting originals or erasing the failed historical command. It adds no activity that was not captured.
+
+Live discovery also found site-provided Nsight `2025.6.3.541` bundled with `cuda/13.2.1`; its absolute executable runs after restoring toolkit `12.8.1`. User-authorized allocation `8389776` completed a finite identity/tool-capability preflight on an A100 with driver `580.95.05`. No internal driver observation/mutation or application GPU workload occurred in that preflight. Help/status success is not proof of supported collection or active spatial execution.
+
+### EXP-007: actual standard-API telemetry
+
+The [repaired native smoke](../evidence/public/exp007-profile-results.md) completed successfully with the newer profiler and unchanged toolkit/probe source. Physical CUDA/EGL/NVML/profiler identities matched; GPU switch and metric records and fresh exports now exist. The initial inventory-cardinality guard failure remains preserved. These later runs are separate from the original offline assessment.
+
+Restore/save brackets are not exact active-warp execution, and scheduling IDs are not mapped RM TSG handles. CPU scheduling was intentionally disabled and CUDA tracing used software instrumentation. Full all-mode correctness, matched steady-state/process controls, attribution, and resource-use checks remain incomplete. Gate 4 stays partial; the separate author-artifact/control-mapping and internal-operation permission prerequisites remain unchanged.
+
 ## 2. VUDA mechanism and adaptation boundary
 
 V1 and v2 are different designs. V1 describes forwarding channels and kernel-module page-table work. V2 describes an `LD_PRELOAD` library intercepting allocation `ioctl()` calls, duplicating the existing graphics TSG into CUDA's driver client, and redirecting selected CUDA subcontext/channel parents while preserving CUDA's virtual-address-space handle. [S1, S2]

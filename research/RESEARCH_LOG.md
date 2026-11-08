@@ -18,10 +18,11 @@ This register documents key architectural, methodological, and operational decis
 | **DEC-010** | 2026-11-07 | **Resolve profiler compatibility and distinguish disabled capture from failed capability** | EXP-003 metadata explicitly disables GPU context-switch tracing. Diagnostics warn of unsupported CUDA-driver compatibility version `13.0` and fallback to `12.6` tracing libraries. Check site-provided profiler support before a decisive rerun; do not infer a hardware or permission failure from absent events. No automatic tool installation or driver change. | **Accepted** |
 | **DEC-011** | 2026-11-07 | **Select profiler independently from the application toolkit** | Live discovery found Nsight `2025.6.3.541` inside site module `cuda/13.2.1`, despite failed named-profiler module searches. Saving its absolute path and restoring `cuda/12.8.1` preserves the established build toolkit. Availability/help success is not target tracing proof. | **Accepted** |
 | **DEC-012** | 2026-11-07 | **Close measured profiler capability without promoting scheduling brackets to active execution** | EXP-007's newer tool actually collected GPU switch/metric records and fresh exports in an authorized user job. `RESTORE_START`/`SAVE_END` brackets are not exact active-warp intervals, scheduling IDs are not RM TSG handles, and inter-bracket gaps are not measured causal switch cost. Full correctness, matched controls, attribution, and resource availability remain separate requirements. | **Accepted** |
+| **DEC-013** | 2026-11-08 | **Incorporate VUDA author guidance on privileges, OpenGL, and hardware targets** | First author Bin Xu (SJTU IPADS) confirmed forthcoming anonymized code release with native OpenGL testing, stated KMD ioctls require administrator (root) access, and recommended graphics-capable GPUs (RTX 4090 or RTX 6000 Ada) over H100 (which lacks full graphics hardware). Because OSC prohibits root/KMD modification, Gate 5 testing shifts to EPFL host lab (or a dedicated root-accessible workstation). | **Accepted** |
 
 ---
 
-## 2. Primary Sources Register (S1–S31)
+## 2. Primary Sources Register (S1–S32)
 
 The historical S1–S23 register remains anchored in the [technical plan](reference/VUDA_OPENGL_LIBERO_PLAN.md). Gate 5 freshly reviewed S1 §§4–7.1, S19, and added S24–S27 below. Historical reviews are not represented as fresh verification.
 
@@ -75,8 +76,8 @@ The historical S1–S23 register remains anchored in the [technical plan](refere
 - **S29 — Cross-API physical GPU identity:** [EGL_EXT_device_persistent_id](https://registry.khronos.org/EGL/extensions/EXT/EGL_EXT_device_persistent_id.txt), [EGL_NV_device_cuda](https://registry.khronos.org/EGL/extensions/NV/EGL_NV_device_cuda.txt), [CUDA visibility](https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/environment-variables.html), and [CUDA graphics interoperability](https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/graphics-interop.html). EGL exposes a 16-byte physical UUID without a GL context; NVIDIA compares CUDA and Vulkan physical UUIDs. CUDA ordinals follow visibility, whereas EGL's numeric CUDA-device query does not specify masking interaction. EXP-007 preserved raw specifications/provenance and actually exercised a pre-context CUDA/EGL UUID check; no hand-written ABI constants or ordinal-only identity proof.
 - **S30 — Nsight Systems 2025.6 HES hardware tracing:** [Versioned User Guide, CLI `--trace`](https://archive.docs.nvidia.com/nsight-systems/2025.6/UserGuide/index.html#cli-profile-command-switch-options) and [CUDA Trace](https://archive.docs.nvidia.com/nsight-systems/2025.6/UserGuide/index.html#cuda-trace). HES requires Blackwell-or-later GPUs; MPS workloads, MIG partitions, and vGPU environments are excluded. `--trace=cuda` selects hardware where supported with possible software fallback; `cuda-sw` explicitly selects software. Saved installed `2025.6.3.541` help advertises those selectors, not `cuda-hw`; no undocumented alias acceptance was tested. A100/Ampere does not satisfy the architecture requirement.
 - **S31 — Native probe failure and ownership semantics:** [CUDA Runtime API 12.8.1, Error Handling](https://docs.nvidia.com/cuda/archive/12.8.1/cuda-runtime-api/group__CUDART__ERROR.html) documents `cudaGetLastError()` returning and resetting the host thread's runtime error, including possible earlier asynchronous errors. [Khronos `eglMakeCurrent`](https://registry.khronos.org/EGL/sdk/docs/man/html/eglMakeCurrent.xhtml) documents thread-exclusive context binding and that `EGL_NO_CONTEXT` release respects the currently bound client API. EXP-008 therefore checks launch/completion statuses and explicitly binds the render worker to `EGL_OPENGL_API`. Reader extractions and a corrected review are retained privately; static final output checks do not establish per-iteration freshness.
-
 ---
+- **S32 — Author Correspondence (Bin Xu, SJTU IPADS):** Email correspondence (November 8, 2026). Confirms anonymized code release in preparation (delayed by double-blind review); clarifies OpenGL and Vulkan share lower-level paths in NVIDIA user-mode driver (UMD) and author is testing OpenGL support for the release; states implementation requires root access to issue KMD ioctls (or a modified KMD); recommends RTX 4090 or RTX 6000 Ada over H100 for combined graphics/compute.
 
 ## 3. Hypotheses & Open Technical Questions
 
@@ -102,10 +103,8 @@ The historical S1–S23 register remains anchored in the [technical plan](refere
 ### Open Technical Questions
 
 1. *What specific policy model and reinforcement learning training framework (e.g., RLinf, custom PPO, SAC) will be used for the final LIBERO benchmarks?*
-2. *Will the authors of VUDA respond with source code access, or must the project proceed as an independent clean-room reverse-engineering effort?*
-3. *What are the specific cluster policy boundaries at OSC regarding user-space `ioctl` interception and custom channel allocation?*
-
----
+2. *Will the authors of VUDA respond with source code access, or must the project proceed as an independent clean-room reverse-engineering effort?* **RESOLVED (2026-11-08):** Bin Xu (first author, IPADS Lab, SJTU) responded. The code release was delayed by double-blind review rules; an anonymized release is forthcoming soon. The author confirmed that OpenGL shares lower-level user-mode driver (UMD) paths with Vulkan, is actively validating OpenGL support to include in the release, stated the approach requires administrator (root) access for KMD ioctls (or modified KMD), and recommended RTX 4090 / RTX 6000 Ada hardware over H100.
+3. *What are the specific cluster policy boundaries at OSC regarding user-space ioctl interception and custom channel allocation?* **RESOLVED (2026-11-08):** Author confirmed root access is required for KMD ioctls. Unprivileged users on multi-tenant HPC clusters (OSC) cannot issue these ioctls or patch the KMD. Low-level Gate 5 experiments are therefore infeasible on OSC and must be executed in an environment with root access (e.g. EPFL host lab or dedicated workstation with RTX 4090/6000 Ada).
 
 ## 4. Experiment & Evidence Register
 

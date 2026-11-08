@@ -89,6 +89,20 @@ Controlled partitioning is a separate mechanism: a dedicated shadow channel subm
 The paper evaluates Vulkan/CUDA, including A800 with driver `610.57.04`, not OpenGL/A100 with `580.95.05`. Ampere-family similarity is motivation for investigation, not compatibility proof. Keep the native GL TSG's initialized graphics state if a later verified adaptation supports it. Do not replace LIBERO's renderer with Vulkan to claim an OpenGL port. [S1]
 
 The [version-specific driver assessment](GATE5_DRIVER_ASSESSMENT.md) maps candidate RM interfaces and validation boundaries. Open source definitions do not establish the proprietary OpenGL user-mode driver's allocation sequence or GSP firmware behavior at runtime.
+### Author communication and technical clarifications (Bin Xu, November 2026)
+
+Correspondence with Bin Xu (first author of VUDA, PhD student at IPADS Lab, Shanghai Jiao Tong University) established key architectural and operational constraints:
+
+1. **Artifact release status:** Source code was withheld during paper double-blind review. The authors are preparing an anonymized public release soon.
+2. **OpenGL feasibility:** While the paper evaluated Vulkan only, the author expects OpenGL adaptation to be relatively straightforward because OpenGL and Vulkan share much of the lower-level path in the NVIDIA user-mode driver (UMD). The author is actively testing the OpenGL path to include native OpenGL support in the release.
+3. **Privilege requirement (Root/Admin):** The current channel-redirection implementation requires administrator access because it must issue specific `ioctl()` calls to the kernel-mode driver (KMD). Running without root would require modifying the KMD module itself to permit the relevant ioctls from unprivileged users.
+4. **Hardware and architecture suitability:**
+   - Basic GPU sharing is expected to work across a broad range of NVIDIA architectures.
+   - Fine-grained resource partitioning (SCG mode/TPC quotas) may not function on Hopper/Blackwell (H/B-series) GPUs.
+   - H100 is explicitly **not recommended** due to reduced graphics rendering hardware compared to client/workstation architectures.
+   - Graphics-capable GPUs such as **RTX 4090** or **RTX 6000 Ada** (Ada Lovelace) are the author's recommended platforms for simultaneous rendering and compute workloads.
+5. **Implications for OSC vs. EPFL:** Because multi-tenant shared clusters (OSC) prohibit root access and KMD modifications, Gate 5 runtime redirection cannot be deployed unprivileged on OSC. The permanent target lab at **EPFL** (or a dedicated bare-metal workstation with an RTX 4090/6000 Ada and root access) is required for Gate 5.
+
 
 ## 3. Policy: findings versus project precautions
 

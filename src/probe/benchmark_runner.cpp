@@ -1,6 +1,5 @@
 #include "benchmark_runner.h"
-#include <nvtx3/nvToolsExt.h>
-
+#include "nvtx_wrapper.h"
 #include <iostream>
 #include <iomanip>
 #include <thread>
@@ -22,22 +21,9 @@ void checkCuda(cudaError_t err, const char* msg) {
 }
 
 struct NvtxRangeGuard {
-    bool active = false;
-    explicit NvtxRangeGuard(const char* name) {
-        nvtxRangePushA(name);
-        active = true;
-    }
-    void pop() {
-        if (active) {
-            nvtxRangePop();
-            active = false;
-        }
-    }
-    ~NvtxRangeGuard() {
-        pop();
-    }
-    NvtxRangeGuard(const NvtxRangeGuard&) = delete;
-    NvtxRangeGuard& operator=(const NvtxRangeGuard&) = delete;
+    NvtxScope scope;
+    explicit NvtxRangeGuard(const char* name) : scope(name) {}
+    void pop() { scope.pop(); }
 };
 } // anonymous namespace
 
@@ -305,7 +291,7 @@ std::pair<TimingStats, TimingStats> BenchmarkRunner::runConcurrentMultiThreaded(
         bool nvtx_pushed = false;
         bool context_bound = false;
         try {
-            nvtxRangePushA("Worker_EGL_Render");
+            nvtx_push("Worker_EGL_Render");
             nvtx_pushed = true;
 
             // Set client API to OpenGL for this thread
@@ -349,7 +335,7 @@ std::pair<TimingStats, TimingStats> BenchmarkRunner::runConcurrentMultiThreaded(
             }
         }
         if (nvtx_pushed) {
-            nvtxRangePop();
+            nvtx_pop();
         }
         if (cleanup_err && !render_exception) {
             render_exception = cleanup_err;
@@ -361,7 +347,7 @@ std::pair<TimingStats, TimingStats> BenchmarkRunner::runConcurrentMultiThreaded(
         bool nvtx_pushed = false;
         cudaStream_t stream = nullptr;
         try {
-            nvtxRangePushA("Worker_CUDA_Compute");
+            nvtx_push("Worker_CUDA_Compute");
             nvtx_pushed = true;
 
             cudaError_t err = cudaSetDevice(config_.target_device);
@@ -407,7 +393,7 @@ std::pair<TimingStats, TimingStats> BenchmarkRunner::runConcurrentMultiThreaded(
             }
         }
         if (nvtx_pushed) {
-            nvtxRangePop();
+            nvtx_pop();
         }
         if (cleanup_err && !compute_exception) {
             compute_exception = cleanup_err;
@@ -454,14 +440,14 @@ std::pair<TimingStats, TimingStats> BenchmarkRunner::runConcurrentMultiThreaded(
             std::rethrow_exception(compute_exception);
         }
     } else {
-        nvtxRangePushA("Concurrent_Multi_Threaded");
+        nvtx_push("Concurrent_Multi_Threaded");
         auto start_wall = std::chrono::high_resolution_clock::now();
         start_flag.store(true, std::memory_order_release);
 
         t1.join();
         t2.join();
         auto end_wall = std::chrono::high_resolution_clock::now();
-        nvtxRangePop();
+        nvtx_pop();
         wall_ms = std::chrono::duration<double, std::milli>(end_wall - start_wall).count();
 
         // Rebind context to main thread

@@ -1,0 +1,75 @@
+{
+  "experiment": "EXP-005",
+  "observed_at_utc": "2026-11-07T22:36:57.046107+00:00",
+  "kind": "Sanitized read-only audit of preserved EXP-003 SQLite; no GPU run",
+  "input_sha256": "b2c0256233ff12ba08f417fbe8d75825246afe48685b3cc026269cd107f5997b",
+  "queries": {
+    "warnings": "SELECT timestamp, severity, text FROM DIAGNOSTIC_EVENT WHERE severity > 1 ORDER BY timestamp",
+    "capture": "SELECT name,value FROM META_DATA_CAPTURE WHERE name IN ('COLLECT_GPU_CTX_SW_TRACE','GRAPHICS_TRACE_OPTIONS:COLLECT_OPENGL_WORKLOAD') ORDER BY name",
+    "export": "SELECT name,value FROM META_DATA_EXPORT WHERE name IN ('EXPORT_PRODUCT_VERSION','EXPORT_SCHEMA_VERSION','EXPORT_TIME_UTC','EXPORT_PARAM_INPUT_FILE','EXPORT_PARAM_OUTPUT_FILE','EXPORT_PARAM_APPEND','EXPORT_PARAM_LAZY','EXPORT_PARAM_OVERWRITE') ORDER BY name"
+  },
+  "results": {
+    "warnings": [
+      [
+        177185626,
+        2,
+        "Installed CUDA driver version (13.0) is not supported by this build of Nsight Systems. CUDA trace will be collected using libraries for driver version 12.6"
+      ],
+      [
+        1797205745,
+        2,
+        "The operating system throttled the collection of sampling data 4 times."
+      ]
+    ],
+    "capture": [
+      [
+        "COLLECT_GPU_CTX_SW_TRACE",
+        "false"
+      ],
+      [
+        "GRAPHICS_TRACE_OPTIONS:COLLECT_OPENGL_WORKLOAD",
+        "true"
+      ]
+    ],
+    "export": [
+      [
+        "EXPORT_PARAM_APPEND",
+        "true"
+      ],
+      [
+        "EXPORT_PARAM_INPUT_FILE",
+        "vuda_exp003_profile_8375678.nsys-rep"
+      ],
+      [
+        "EXPORT_PARAM_LAZY",
+        "true"
+      ],
+      [
+        "EXPORT_PARAM_OUTPUT_FILE",
+        "vuda_exp003_profile_8375678.sqlite"
+      ],
+      [
+        "EXPORT_PARAM_OVERWRITE",
+        "false"
+      ],
+      [
+        "EXPORT_PRODUCT_VERSION",
+        "2024.7.1.84"
+      ],
+      [
+        "EXPORT_SCHEMA_VERSION",
+        "3.16.3"
+      ],
+      [
+        "EXPORT_TIME_UTC",
+        "2026-11-07T02:58:49"
+      ]
+    ]
+  },
+  "limits": [
+    "Input hash identifies locally preserved bytes, not independent provenance authenticity.",
+    "Export filenames and timestamps do not authenticate report/database byte pairing.",
+    "Driver version 13.0 warning is not a measurement of the loaded CUDA toolkit.",
+    "CPU sampling throttle warning does not establish dropped GPU activity."
+  ]
+}

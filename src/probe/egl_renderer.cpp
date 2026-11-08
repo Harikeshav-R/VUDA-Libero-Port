@@ -5,7 +5,8 @@
 #include <cmath>
 #include <cstring>
 #include <vector>
-
+#include <cstdint>
+#include <limits>
 EGLRenderer::EGLRenderer(int width, int height)
     : width_(width),
       height_(height),
@@ -221,9 +222,13 @@ bool EGLRenderer::setupFBO() {
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+    size_t w = static_cast<size_t>(width_);
+    size_t h = static_cast<size_t>(height_);
+    if (h != 0 && w <= (std::numeric_limits<size_t>::max() / (h * 4))) {
+        readback_buffer_.resize(w * h * 4);
+    }
     return true;
 }
-
 bool EGLRenderer::setupShaders() {
     const char* vs_source = R"(#version 330 core
 layout (location = 0) in vec3 aPos;
@@ -311,7 +316,7 @@ void main() {
     return true;
 }
 
-void EGLRenderer::renderFrame() {
+void EGLRenderer::renderSceneInternal() {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
     glViewport(0, 0, width_, height_);
 
@@ -323,26 +328,42 @@ void EGLRenderer::renderFrame() {
     glBindVertexArray(vao_);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glBindVertexArray(0);
+}
 
+void EGLRenderer::renderFrame() {
+    renderSceneInternal();
     glFinish();
 }
 
 bool EGLRenderer::readPixelsAndVerify(uint8_t expected_bg_r, uint8_t expected_bg_g, uint8_t expected_bg_b) {
+    if (width_ < 16 || height_ < 16) {
+        std::cerr << "[EGLRenderer] Verification failed: dimensions too small (w="
+                  << width_ << ", h=" << height_ << ", required w>=16, h>=16)" << std::endl;
+        return false;
+    }
+    size_t w = static_cast<size_t>(width_);
+    size_t h = static_cast<size_t>(height_);
+    if (w > (std::numeric_limits<size_t>::max() / (h * 4))) {
+        std::cerr << "[EGLRenderer] Verification failed: dimensions overflow size_t capacity" << std::endl;
+        return false;
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
-    std::vector<uint8_t> pixels(width_ * height_ * 4);
-    glReadPixels(0, 0, width_, height_, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    if (readback_buffer_.size() != w * h * 4) {
+        readback_buffer_.resize(w * h * 4);
+    }
+    glReadPixels(0, 0, width_, height_, GL_RGBA, GL_UNSIGNED_BYTE, readback_buffer_.data());
 
     // Check corner pixel (background) at (2, 2)
-    int corner_idx = (2 * width_ + 2) * 4;
-    uint8_t bg_r = pixels[corner_idx + 0];
-    uint8_t bg_g = pixels[corner_idx + 1];
-    uint8_t bg_b = pixels[corner_idx + 2];
+    size_t corner_idx = (2 * w + 2) * 4;
+    uint8_t bg_r = readback_buffer_[corner_idx + 0];
+    uint8_t bg_g = readback_buffer_[corner_idx + 1];
+    uint8_t bg_b = readback_buffer_[corner_idx + 2];
 
     // Check center pixel (triangle) at (width / 2, height / 2)
-    int center_idx = ((height_ / 2) * width_ + (width_ / 2)) * 4;
-    uint8_t tri_r = pixels[center_idx + 0];
-    uint8_t tri_g = pixels[center_idx + 1];
-    uint8_t tri_b = pixels[center_idx + 2];
+    size_t center_idx = ((h / 2) * w + (w / 2)) * 4;
+    uint8_t tri_r = readback_buffer_[center_idx + 0];
+    uint8_t tri_g = readback_buffer_[center_idx + 1];
+    uint8_t tri_b = readback_buffer_[center_idx + 2];
 
     bool bg_match = (std::abs(bg_r - expected_bg_r) <= 3) &&
                     (std::abs(bg_g - expected_bg_g) <= 3) &&
@@ -355,6 +376,110 @@ bool EGLRenderer::readPixelsAndVerify(uint8_t expected_bg_r, uint8_t expected_bg
 
     if (!bg_match || !tri_match) {
         std::cerr << "[EGLRenderer] Pixel verification failed:\n"
+                  << "  Corner pixel observed: RGB(" << (int)bg_r << ", " << (int)bg_g << ", " << (int)bg_b
+                  << "), expected: RGB(" << (int)expected_bg_r << ", " << (int)expected_bg_g << ", " << (int)expected_bg_b << ")\n"
+                  << "  Center pixel observed: RGB(" << (int)tri_r << ", " << (int)tri_g << ", " << (int)tri_b
+                  << "), expected: RGB(204, 51, 76)" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+void EGLRenderer::renderTaggedFrame(uint64_t iteration) {
+    if (width_ < 16 || height_ < 16) {
+        throw std::runtime_error("EGLRenderer dimensions too small for tagged frame (requires width>=16, height>=16)");
+    }
+
+    // Common render commands without premature glFinish
+    renderSceneInternal();
+
+    // Encode exact 64-bit iteration tag into first 8 pixels of bottom row (y=0, x=0..7).
+    // Save exact caller GL state before modifying for tag strip
+    GLboolean prev_dither = glIsEnabled(GL_DITHER);
+    GLboolean prev_depth = glIsEnabled(GL_DEPTH_TEST);
+    GLboolean prev_scissor = glIsEnabled(GL_SCISSOR_TEST);
+
+    glDisable(GL_DITHER);
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_SCISSOR_TEST);
+
+    for (int i = 0; i < 8; ++i) {
+        uint8_t byte_val = static_cast<uint8_t>((iteration >> (i * 8)) & 0xFFULL);
+        float norm_val = static_cast<float>(byte_val) / 255.0f;
+        glClearColor(norm_val, 0.0f, 0.0f, 1.0f);
+        glScissor(i, 0, 1, 1);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+
+    // Restore exact caller state
+    if (!prev_scissor) glDisable(GL_SCISSOR_TEST);
+    if (prev_depth) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+    if (prev_dither) glEnable(GL_DITHER); else glDisable(GL_DITHER);
+    // Single completion wait at end of all tagged render commands
+    glFinish();
+}
+
+bool EGLRenderer::verifyTaggedFrame(uint64_t iteration) {
+    if (width_ < 16 || height_ < 16) {
+        std::cerr << "[EGLRenderer] Verification failed: dimensions too small (w="
+                  << width_ << ", h=" << height_ << ", required w>=16, h>=16)" << std::endl;
+        return false;
+    }
+    size_t w = static_cast<size_t>(width_);
+    size_t h = static_cast<size_t>(height_);
+    if (w > (std::numeric_limits<size_t>::max() / (h * 4))) {
+        std::cerr << "[EGLRenderer] Verification failed: dimensions overflow size_t capacity" << std::endl;
+        return false;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+    if (readback_buffer_.size() != w * h * 4) {
+        readback_buffer_.resize(w * h * 4);
+    }
+    glReadPixels(0, 0, width_, height_, GL_RGBA, GL_UNSIGNED_BYTE, readback_buffer_.data());
+
+    // 1. Decode and verify the 64-bit iteration tag from row y=0, x=0..7
+    uint64_t observed_tag = 0;
+    for (size_t i = 0; i < 8; ++i) {
+        size_t pixel_idx = (0 * w + i) * 4;
+        uint8_t r = readback_buffer_[pixel_idx + 0];
+        observed_tag |= (static_cast<uint64_t>(r) << (i * 8));
+    }
+
+    if (observed_tag != iteration) {
+        std::cerr << "[EGLRenderer] Tag mismatch: observed " << observed_tag
+                  << " (0x" << std::hex << observed_tag << std::dec
+                  << "), expected " << iteration
+                  << " (0x" << std::hex << iteration << std::dec << ")" << std::endl;
+        return false;
+    }
+
+    // 2. Check corner pixel (background) at (2, 2)
+    size_t corner_idx = (2 * w + 2) * 4;
+    uint8_t bg_r = readback_buffer_[corner_idx + 0];
+    uint8_t bg_g = readback_buffer_[corner_idx + 1];
+    uint8_t bg_b = readback_buffer_[corner_idx + 2];
+
+    // 3. Check center pixel (triangle) at (width / 2, height / 2)
+    size_t center_idx = ((h / 2) * w + (w / 2)) * 4;
+    uint8_t tri_r = readback_buffer_[center_idx + 0];
+    uint8_t tri_g = readback_buffer_[center_idx + 1];
+    uint8_t tri_b = readback_buffer_[center_idx + 2];
+    uint8_t expected_bg_r = 51;
+    uint8_t expected_bg_g = 102;
+    uint8_t expected_bg_b = 153;
+
+    bool bg_match = (std::abs(bg_r - expected_bg_r) <= 3) &&
+                    (std::abs(bg_g - expected_bg_g) <= 3) &&
+                    (std::abs(bg_b - expected_bg_b) <= 3);
+
+    bool tri_match = (std::abs(tri_r - 204) <= 4) &&
+                     (std::abs(tri_g - 51) <= 4) &&
+                     (std::abs(tri_b - 76) <= 4);
+
+    if (!bg_match || !tri_match) {
+        std::cerr << "[EGLRenderer] Pixel verification failed in tagged frame:\n"
                   << "  Corner pixel observed: RGB(" << (int)bg_r << ", " << (int)bg_g << ", " << (int)bg_b
                   << "), expected: RGB(" << (int)expected_bg_r << ", " << (int)expected_bg_g << ", " << (int)expected_bg_b << ")\n"
                   << "  Center pixel observed: RGB(" << (int)tri_r << ", " << (int)tri_g << ", " << (int)tri_b
@@ -402,5 +527,7 @@ void EGLRenderer::teardown() {
         eglTerminate(display_);
         display_ = EGL_NO_DISPLAY;
     }
+    readback_buffer_.clear();
+    readback_buffer_.shrink_to_fit();
     initialized_ = false;
 }

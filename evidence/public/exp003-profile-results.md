@@ -22,11 +22,11 @@ nsys profile \
 ```
 
 The preserved SQLite export (`vuda_exp003_profile_8375678.sqlite`) contains:
-- `CUPTI_ACTIVITY_KIND_KERNEL`: 341 kernel execution events with microsecond start and end timestamps.
+- `CUPTI_ACTIVITY_KIND_KERNEL`: 341 kernel execution events with nanosecond start/end timestamps; timing summaries convert these to microseconds.
 - `OPENGL_WORKLOAD`: 666 GPU-side graphics workload events (framebuffer bindings, clears, and readbacks).
 - `NVTX_EVENTS`: Annotated execution phases (`Solo_EGL_Render`, `Solo_CUDA_Compute`, `Serial_Interleaved`, `Concurrent_Multi_Threaded`).
 
-The execution log ends with `Exportation error: File already exists` and exit code 1 after report generation. The database exists and its phase timings match the report's logged run, but fresh export correspondence has not been established. Do not describe the entire profiling/export job as successful.
+The execution log ends with `Exportation error: File already exists` and exit code 1 after report generation. A later [EXP-006 fresh export](exp006-live-prerequisites.md#2-fresh-export-and-full-event-content-comparison) reproduces all 90 non-export-metadata table row multisets and all 91 schemas from the hash-matched preserved report. This resolves event-content correspondence; it does not rewrite the historical failed command as successful or authenticate every historical actor/command.
 
 ---
 
@@ -82,6 +82,8 @@ Timestamp Window (ns)           Duration   Engine  Operation
 **Partial: GPU/API timeline capture established; active co-execution and TSG root cause inconclusive.** This supersedes earlier claims that these ranges prove TSG isolation, graphics suspension, or the necessity of VUDA.
 
 The SQLite export has neither `GPU_CONTEXT_SWITCH_EVENTS` nor `GPU_METRICS`. `ENUM_GPU_CTX_SWITCH` is an enumeration, not recorded context-switch evidence; `SCHED_EVENTS` concerns CPU scheduling. No GL/CUDA TSG allocation mapping was captured.
+
+**November 7 offline metadata follow-up:** `COLLECT_GPU_CTX_SW_TRACE=false`, so missing switch events do not demonstrate a collection failure or permission denial. Diagnostics warn that CUDA driver compatibility version `13.0` was unsupported by Nsight `2024.7.1.84`, which used tracing libraries for `12.6`; the loaded toolkit remains separately recorded as `12.8.1`. CPU sampling was throttled four times. These warnings require a compatibility check, not an unsupported conclusion that every GPU event is invalid. Exact queries and sanitized output: [EXP-005 audit](exp005-trace-metadata-audit.json).
 
 The profiled run records 64.45 ms serial and 67.92 ms concurrent wall time, unlike EXP-002's unprofiled concurrent advantage. Keep profiler overhead and configuration differences separate from performance conclusions.
 

@@ -1,0 +1,1648 @@
+{
+  "experiment": "EXP-009",
+  "title": "Controlled Native OpenGL/CUDA Scheduling Experiment",
+  "target_platform": {
+    "cluster": "OSC Ascend (preliminary testbed; host lab EPFL)",
+    "gpu": "NVIDIA A100-PCIE-40GB",
+    "compute_capability": "8.0",
+    "driver_version": "580.95.05",
+    "cuda_toolkit": "12.8.1",
+    "nvcc_version": "V12.8.93",
+    "gcc_version": "11.5.0",
+    "python_version": "3.9.21",
+    "cmake_version": "3.26.5",
+    "profiler": "Nsight Systems 2025.6.3 (ga100 metric set)"
+  },
+  "batch_execution": {
+    "partition": "debug-nextgen",
+    "nodes": 1,
+    "cpus_allocated": 5,
+    "memory_allocated": "16G",
+    "gpus_allocated": 1,
+    "walltime_limit": "00:45:00",
+    "elapsed_walltime": "00:24:35",
+    "slurm_exit_code": "0:0",
+    "timestamp_sidecar_format": "EXP9TS01_LE"
+  },
+  "verification_prerequisites": {
+    "native_tag_boundary_and_stale_proof": "PASSED",
+    "fault_injection_rejections": {
+      "cases_tested": 13,
+      "cases_passed": 13,
+      "description": "6 host readback corruptions, worker init failures, NaN injection"
+    },
+    "cli_rejections": {
+      "cases_tested": 11,
+      "cases_passed": 11,
+      "description": "Invalid modes, topologies, bounds, negative/zero durations"
+    },
+    "validation_matrix": {
+      "runs_tested": 12,
+      "runs_passed": 12,
+      "description": "All 6 conditions x 2 sizes with strict per-iteration validation"
+    },
+    "closed_pipe_worker_rejection": {
+      "tested": true,
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "timed_out": false,
+      "passed": true
+    },
+    "independent_timed_smoke_replay": {
+      "cells_tested": 12,
+      "cells_verified": 12,
+      "passed": true
+    }
+  },
+  "matrix_configuration": {
+    "conditions": 6,
+    "array_sizes": [
+      1024,
+      262144
+    ],
+    "repetitions": 5,
+    "total_cells": 60,
+    "warmup_seconds": 5.0,
+    "measurement_duration_seconds": 15.0,
+    "intensity": 100,
+    "framebuffer_resolution": "128x128 RGBA8",
+    "independent_timestamp_replay_auditor": {
+      "total_cells_audited": 60,
+      "valid_cells": 60,
+      "cell_errors": {},
+      "valid": true
+    }
+  },
+  "unprofiled_matrix_results": {
+    "solo-render:threads:1024": {
+      "repetitions": 5,
+      "elements": 1024,
+      "mode": "solo-render",
+      "topology": "threads",
+      "workers": {
+        "render": {
+          "completed": {
+            "median": 457062,
+            "min": 448965,
+            "max": 458520
+          },
+          "throughput_ops_sec": {
+            "median": 30470.8,
+            "min": 29931.0,
+            "max": 30568.0
+          },
+          "p50_us": {
+            "median": 26.941,
+            "min": 26.821,
+            "max": 27.281
+          },
+          "p95_us": {
+            "median": 30.347,
+            "min": 29.406,
+            "max": 32.902
+          },
+          "p99_us": {
+            "median": 41.388,
+            "min": 41.017,
+            "max": 43.011
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 12.751,
+            "min": 2.287,
+            "max": 23.322
+          },
+          "start_skew_us": {
+            "median": 1.237,
+            "min": 0.932,
+            "max": 1.348
+          }
+        }
+      }
+    },
+    "solo-render:threads:262144": {
+      "repetitions": 5,
+      "elements": 262144,
+      "mode": "solo-render",
+      "topology": "threads",
+      "workers": {
+        "render": {
+          "completed": {
+            "median": 451685,
+            "min": 432359,
+            "max": 454512
+          },
+          "throughput_ops_sec": {
+            "median": 30112.333,
+            "min": 28823.933,
+            "max": 30300.8
+          },
+          "p50_us": {
+            "median": 27.271,
+            "min": 27.081,
+            "max": 27.351
+          },
+          "p95_us": {
+            "median": 31.079,
+            "min": 30.838,
+            "max": 32.741
+          },
+          "p99_us": {
+            "median": 41.819,
+            "min": 41.478,
+            "max": 42.971
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 23.149,
+            "min": 7.563,
+            "max": 1671.028
+          },
+          "start_skew_us": {
+            "median": 1.253,
+            "min": 1.017,
+            "max": 1.583
+          }
+        }
+      }
+    },
+    "solo-compute:threads:1024": {
+      "repetitions": 5,
+      "elements": 1024,
+      "mode": "solo-compute",
+      "topology": "threads",
+      "workers": {
+        "compute": {
+          "completed": {
+            "median": 1404553,
+            "min": 1398712,
+            "max": 1407101
+          },
+          "throughput_ops_sec": {
+            "median": 93636.867,
+            "min": 93247.467,
+            "max": 93806.733
+          },
+          "p50_us": {
+            "median": 10.57,
+            "min": 10.54,
+            "max": 10.6
+          },
+          "p95_us": {
+            "median": 10.951,
+            "min": 10.89,
+            "max": 10.991
+          },
+          "p99_us": {
+            "median": 11.833,
+            "min": 11.792,
+            "max": 11.892
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 7.334,
+            "min": 4.565,
+            "max": 8.152
+          },
+          "start_skew_us": {
+            "median": 1.026,
+            "min": 0.948,
+            "max": 1.395
+          }
+        }
+      }
+    },
+    "solo-compute:threads:262144": {
+      "repetitions": 5,
+      "elements": 262144,
+      "mode": "solo-compute",
+      "topology": "threads",
+      "workers": {
+        "compute": {
+          "completed": {
+            "median": 705665,
+            "min": 704735,
+            "max": 706822
+          },
+          "throughput_ops_sec": {
+            "median": 47044.333,
+            "min": 46982.333,
+            "max": 47121.467
+          },
+          "p50_us": {
+            "median": 21.07,
+            "min": 21.069,
+            "max": 21.099
+          },
+          "p95_us": {
+            "median": 21.48,
+            "min": 21.42,
+            "max": 21.511
+          },
+          "p99_us": {
+            "median": 26.329,
+            "min": 25.559,
+            "max": 26.73
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 11.189,
+            "min": 1.979,
+            "max": 16.9
+          },
+          "start_skew_us": {
+            "median": 1.063,
+            "min": 0.826,
+            "max": 1.235
+          }
+        }
+      }
+    },
+    "serial:threads:1024": {
+      "repetitions": 5,
+      "elements": 1024,
+      "mode": "serial",
+      "topology": "threads",
+      "workers": {
+        "render": {
+          "completed": {
+            "median": 42457,
+            "min": 42400,
+            "max": 42500
+          },
+          "throughput_ops_sec": {
+            "median": 2830.467,
+            "min": 2826.667,
+            "max": 2833.333
+          },
+          "p50_us": {
+            "median": 178.065,
+            "min": 177.724,
+            "max": 178.186
+          },
+          "p95_us": {
+            "median": 180.73,
+            "min": 179.989,
+            "max": 181.281
+          },
+          "p99_us": {
+            "median": 192.182,
+            "min": 191.641,
+            "max": 192.483
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 0,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 78.818,
+            "min": 0.311,
+            "max": 176.246
+          },
+          "start_skew_us": {
+            "median": 1.314,
+            "min": 1.152,
+            "max": 1.609
+          }
+        },
+        "compute": {
+          "completed": {
+            "median": 42457,
+            "min": 42399,
+            "max": 42500
+          },
+          "throughput_ops_sec": {
+            "median": 2830.467,
+            "min": 2826.6,
+            "max": 2833.333
+          },
+          "p50_us": {
+            "median": 168.557,
+            "min": 168.547,
+            "max": 168.577
+          },
+          "p95_us": {
+            "median": 169.93,
+            "min": 169.88,
+            "max": 169.95
+          },
+          "p99_us": {
+            "median": 170.691,
+            "min": 170.561,
+            "max": 170.902
+          },
+          "late_operations": {
+            "median": 0,
+            "min": 0,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 1.884,
+            "min": 1.843,
+            "max": 98.481
+          },
+          "start_skew_us": {
+            "median": 185.956,
+            "min": 185.178,
+            "max": 186.316
+          }
+        }
+      },
+      "pairs": {
+        "completed": {
+          "median": 42457,
+          "min": 42399,
+          "max": 42500
+        },
+        "p50_us": {
+          "median": 347.144,
+          "min": 346.813,
+          "max": 347.304
+        },
+        "p95_us": {
+          "median": 350.32,
+          "min": 349.819,
+          "max": 350.761
+        },
+        "p99_us": {
+          "median": 421.104,
+          "min": 363.575,
+          "max": 458.043
+        },
+        "late_pairs": {
+          "median": 0,
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    "serial:threads:262144": {
+      "repetitions": 5,
+      "elements": 262144,
+      "mode": "serial",
+      "topology": "threads",
+      "workers": {
+        "render": {
+          "completed": {
+            "median": 41233,
+            "min": 41209,
+            "max": 41257
+          },
+          "throughput_ops_sec": {
+            "median": 2748.867,
+            "min": 2747.267,
+            "max": 2750.467
+          },
+          "p50_us": {
+            "median": 178.035,
+            "min": 177.885,
+            "max": 178.296
+          },
+          "p95_us": {
+            "median": 181.031,
+            "min": 180.009,
+            "max": 182.143
+          },
+          "p99_us": {
+            "median": 191.862,
+            "min": 191.441,
+            "max": 271.581
+          },
+          "late_operations": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "drain_us": {
+            "median": 0.311,
+            "min": 0.311,
+            "max": 0.36
+          },
+          "start_skew_us": {
+            "median": 1.292,
+            "min": 1.172,
+            "max": 1.475
+          }
+        },
+        "compute": {
+          "completed": {
+            "median": 41232,
+            "min": 41208,
+            "max": 41256
+          },
+          "throughput_ops_sec": {
+            "median": 2748.8,
+            "min": 2747.2,
+            "max": 2750.4
+          },
+          "p50_us": {
+            "median": 179.027,
+            "min": 178.997,
+            "max": 179.087
+          },
+          "p95_us": {
+            "median": 180.399,
+            "min": 180.36,
+            "max": 180.47
+          },
+          "p99_us": {
+            "median": 181.041,
+            "min": 180.851,
+            "max": 181.182
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 102.632,
+            "min": 69.481,
+            "max": 168.618
+          },
+          "start_skew_us": {
+            "median": 186.426,
+            "min": 184.72,
+            "max": 188.279
+          }
+        }
+      },
+      "pairs": {
+        "completed": {
+          "median": 41232,
+          "min": 41208,
+          "max": 41256
+        },
+        "p50_us": {
+          "median": 357.593,
+          "min": 357.504,
+          "max": 357.844
+        },
+        "p95_us": {
+          "median": 361.15,
+          "min": 360.219,
+          "max": 362.022
+        },
+        "p99_us": {
+          "median": 449.397,
+          "min": 375.497,
+          "max": 502.236
+        },
+        "late_pairs": {
+          "median": 1,
+          "min": 1,
+          "max": 1
+        }
+      }
+    },
+    "serial:processes:1024": {
+      "repetitions": 5,
+      "elements": 1024,
+      "mode": "serial",
+      "topology": "processes",
+      "workers": {
+        "render": {
+          "completed": {
+            "median": 41572,
+            "min": 41497,
+            "max": 41610
+          },
+          "throughput_ops_sec": {
+            "median": 2771.467,
+            "min": 2766.467,
+            "max": 2774.0
+          },
+          "p50_us": {
+            "median": 173.617,
+            "min": 173.517,
+            "max": 173.747
+          },
+          "p95_us": {
+            "median": 175.781,
+            "min": 175.481,
+            "max": 176.593
+          },
+          "p99_us": {
+            "median": 187.914,
+            "min": 187.503,
+            "max": 189.397
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 0,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 63.767,
+            "min": 0.241,
+            "max": 686.304
+          },
+          "start_skew_us": {
+            "median": 2.461,
+            "min": 2.295,
+            "max": 2.982
+          }
+        },
+        "compute": {
+          "completed": {
+            "median": 41571,
+            "min": 41497,
+            "max": 41609
+          },
+          "throughput_ops_sec": {
+            "median": 2771.4,
+            "min": 2766.467,
+            "max": 2773.933
+          },
+          "p50_us": {
+            "median": 161.073,
+            "min": 161.053,
+            "max": 161.164
+          },
+          "p95_us": {
+            "median": 161.715,
+            "min": 161.685,
+            "max": 162.436
+          },
+          "p99_us": {
+            "median": 162.987,
+            "min": 162.817,
+            "max": 163.177
+          },
+          "late_operations": {
+            "median": 0,
+            "min": 0,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 2.965,
+            "min": 2.154,
+            "max": 156.873
+          },
+          "start_skew_us": {
+            "median": 200.558,
+            "min": 198.44,
+            "max": 222.345
+          }
+        }
+      },
+      "pairs": {
+        "completed": {
+          "median": 41571,
+          "min": 41497,
+          "max": 41609
+        },
+        "p50_us": {
+          "median": 344.589,
+          "min": 344.329,
+          "max": 344.779
+        },
+        "p95_us": {
+          "median": 349.889,
+          "min": 349.157,
+          "max": 351.663
+        },
+        "p99_us": {
+          "median": 362.363,
+          "min": 361.851,
+          "max": 477.609
+        },
+        "late_pairs": {
+          "median": 0,
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    "serial:processes:262144": {
+      "repetitions": 5,
+      "elements": 262144,
+      "mode": "serial",
+      "topology": "processes",
+      "workers": {
+        "render": {
+          "completed": {
+            "median": 40353,
+            "min": 40213,
+            "max": 40421
+          },
+          "throughput_ops_sec": {
+            "median": 2690.2,
+            "min": 2680.867,
+            "max": 2694.733
+          },
+          "p50_us": {
+            "median": 173.727,
+            "min": 173.527,
+            "max": 173.787
+          },
+          "p95_us": {
+            "median": 175.751,
+            "min": 175.52,
+            "max": 176.923
+          },
+          "p99_us": {
+            "median": 188.435,
+            "min": 188.084,
+            "max": 188.866
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 0,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 139.448,
+            "min": 0.261,
+            "max": 150.733
+          },
+          "start_skew_us": {
+            "median": 2.743,
+            "min": 2.434,
+            "max": 2.882
+          }
+        },
+        "compute": {
+          "completed": {
+            "median": 40353,
+            "min": 40213,
+            "max": 40421
+          },
+          "throughput_ops_sec": {
+            "median": 2690.2,
+            "min": 2680.867,
+            "max": 2694.733
+          },
+          "p50_us": {
+            "median": 171.624,
+            "min": 171.523,
+            "max": 171.763
+          },
+          "p95_us": {
+            "median": 172.224,
+            "min": 172.195,
+            "max": 173.136
+          },
+          "p99_us": {
+            "median": 173.557,
+            "min": 173.297,
+            "max": 173.948
+          },
+          "late_operations": {
+            "median": 0,
+            "min": 0,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 2.285,
+            "min": 2.094,
+            "max": 144.111
+          },
+          "start_skew_us": {
+            "median": 201.005,
+            "min": 195.023,
+            "max": 212.58
+          }
+        }
+      },
+      "pairs": {
+        "completed": {
+          "median": 40353,
+          "min": 40213,
+          "max": 40421
+        },
+        "p50_us": {
+          "median": 355.229,
+          "min": 354.678,
+          "max": 355.64
+        },
+        "p95_us": {
+          "median": 359.978,
+          "min": 359.617,
+          "max": 362.893
+        },
+        "p99_us": {
+          "median": 474.143,
+          "min": 415.754,
+          "max": 483.56
+        },
+        "late_pairs": {
+          "median": 0,
+          "min": 0,
+          "max": 1
+        }
+      }
+    },
+    "concurrent:threads:1024": {
+      "repetitions": 5,
+      "elements": 1024,
+      "mode": "concurrent",
+      "topology": "threads",
+      "workers": {
+        "render": {
+          "completed": {
+            "median": 45357,
+            "min": 45326,
+            "max": 45378
+          },
+          "throughput_ops_sec": {
+            "median": 3023.8,
+            "min": 3021.733,
+            "max": 3025.2
+          },
+          "p50_us": {
+            "median": 326.595,
+            "min": 326.484,
+            "max": 326.695
+          },
+          "p95_us": {
+            "median": 327.867,
+            "min": 327.807,
+            "max": 328.018
+          },
+          "p99_us": {
+            "median": 409.04,
+            "min": 333.428,
+            "max": 422.406
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 125.351,
+            "min": 57.351,
+            "max": 243.773
+          },
+          "start_skew_us": {
+            "median": 1.293,
+            "min": 1.127,
+            "max": 1.716
+          }
+        },
+        "compute": {
+          "completed": {
+            "median": 62413,
+            "min": 62171,
+            "max": 62651
+          },
+          "throughput_ops_sec": {
+            "median": 4160.867,
+            "min": 4144.733,
+            "max": 4176.733
+          },
+          "p50_us": {
+            "median": 326.204,
+            "min": 326.054,
+            "max": 326.265
+          },
+          "p95_us": {
+            "median": 327.737,
+            "min": 327.637,
+            "max": 327.888
+          },
+          "p99_us": {
+            "median": 329.46,
+            "min": 329.05,
+            "max": 330.793
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 228.123,
+            "min": 73.44,
+            "max": 295.331
+          },
+          "start_skew_us": {
+            "median": 1.323,
+            "min": 1.187,
+            "max": 1.747
+          }
+        }
+      }
+    },
+    "concurrent:threads:262144": {
+      "repetitions": 5,
+      "elements": 262144,
+      "mode": "concurrent",
+      "topology": "threads",
+      "workers": {
+        "render": {
+          "completed": {
+            "median": 43975,
+            "min": 43929,
+            "max": 43991
+          },
+          "throughput_ops_sec": {
+            "median": 2931.667,
+            "min": 2928.6,
+            "max": 2932.733
+          },
+          "p50_us": {
+            "median": 337.015,
+            "min": 337.015,
+            "max": 337.095
+          },
+          "p95_us": {
+            "median": 338.358,
+            "min": 338.317,
+            "max": 338.448
+          },
+          "p99_us": {
+            "median": 409.592,
+            "min": 345.361,
+            "max": 469.995
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 105.632,
+            "min": 38.536,
+            "max": 126.819
+          },
+          "start_skew_us": {
+            "median": 1.142,
+            "min": 1.036,
+            "max": 1.387
+          }
+        },
+        "compute": {
+          "completed": {
+            "median": 52266,
+            "min": 52108,
+            "max": 52798
+          },
+          "throughput_ops_sec": {
+            "median": 3484.4,
+            "min": 3473.867,
+            "max": 3519.867
+          },
+          "p50_us": {
+            "median": 336.864,
+            "min": 336.834,
+            "max": 336.905
+          },
+          "p95_us": {
+            "median": 338.307,
+            "min": 338.237,
+            "max": 338.367
+          },
+          "p99_us": {
+            "median": 339.74,
+            "min": 339.64,
+            "max": 340.572
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 286.383,
+            "min": 219.618,
+            "max": 307.89
+          },
+          "start_skew_us": {
+            "median": 1.175,
+            "min": 1.046,
+            "max": 1.397
+          }
+        }
+      }
+    },
+    "concurrent:processes:1024": {
+      "repetitions": 5,
+      "elements": 1024,
+      "mode": "concurrent",
+      "topology": "processes",
+      "workers": {
+        "render": {
+          "completed": {
+            "median": 45376,
+            "min": 45314,
+            "max": 45380
+          },
+          "throughput_ops_sec": {
+            "median": 3025.067,
+            "min": 3020.933,
+            "max": 3025.333
+          },
+          "p50_us": {
+            "median": 326.586,
+            "min": 326.525,
+            "max": 326.605
+          },
+          "p95_us": {
+            "median": 327.938,
+            "min": 327.868,
+            "max": 327.968
+          },
+          "p99_us": {
+            "median": 335.983,
+            "min": 335.652,
+            "max": 447.793
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 180.249,
+            "min": 124.197,
+            "max": 245.135
+          },
+          "start_skew_us": {
+            "median": 0.912,
+            "min": 0.827,
+            "max": 1.213
+          }
+        },
+        "compute": {
+          "completed": {
+            "median": 61976,
+            "min": 61953,
+            "max": 63408
+          },
+          "throughput_ops_sec": {
+            "median": 4131.733,
+            "min": 4130.2,
+            "max": 4227.2
+          },
+          "p50_us": {
+            "median": 326.134,
+            "min": 326.094,
+            "max": 326.205
+          },
+          "p95_us": {
+            "median": 327.797,
+            "min": 327.747,
+            "max": 327.827
+          },
+          "p99_us": {
+            "median": 329.531,
+            "min": 329.18,
+            "max": 329.892
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 89.302,
+            "min": 24.056,
+            "max": 315.37
+          },
+          "start_skew_us": {
+            "median": 0.697,
+            "min": 0.551,
+            "max": 1.092
+          }
+        }
+      }
+    },
+    "concurrent:processes:262144": {
+      "repetitions": 5,
+      "elements": 262144,
+      "mode": "concurrent",
+      "topology": "processes",
+      "workers": {
+        "render": {
+          "completed": {
+            "median": 43982,
+            "min": 43947,
+            "max": 43996
+          },
+          "throughput_ops_sec": {
+            "median": 2932.133,
+            "min": 2929.8,
+            "max": 2933.067
+          },
+          "p50_us": {
+            "median": 337.105,
+            "min": 337.035,
+            "max": 337.226
+          },
+          "p95_us": {
+            "median": 338.478,
+            "min": 338.457,
+            "max": 338.568
+          },
+          "p99_us": {
+            "median": 391.668,
+            "min": 345.06,
+            "max": 442.904
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 91.172,
+            "min": 42.457,
+            "max": 293.409
+          },
+          "start_skew_us": {
+            "median": 0.892,
+            "min": 0.691,
+            "max": 1.05
+          }
+        },
+        "compute": {
+          "completed": {
+            "median": 52120,
+            "min": 51906,
+            "max": 52315
+          },
+          "throughput_ops_sec": {
+            "median": 3474.667,
+            "min": 3460.4,
+            "max": 3487.667
+          },
+          "p50_us": {
+            "median": 336.914,
+            "min": 336.805,
+            "max": 337.075
+          },
+          "p95_us": {
+            "median": 338.387,
+            "min": 338.367,
+            "max": 338.477
+          },
+          "p99_us": {
+            "median": 339.84,
+            "min": 339.79,
+            "max": 340.271
+          },
+          "late_operations": {
+            "median": 1,
+            "min": 1,
+            "max": 1
+          },
+          "drain_us": {
+            "median": 223.98,
+            "min": 7.024,
+            "max": 270.96
+          },
+          "start_skew_us": {
+            "median": 0.831,
+            "min": 0.531,
+            "max": 1.111
+          }
+        }
+      }
+    }
+  },
+  "separate_profiling_audit": {
+    "total_profile_cells": 12,
+    "capture_successes": 12,
+    "export_successes": 12,
+    "duration_seconds": 2.0,
+    "warmup_seconds": 1.0,
+    "gpu_context_switch_summary": {
+      "solo_render_ctxsw_rows": 2,
+      "solo_compute_ctxsw_rows": 4,
+      "serial_threads_ctxsw_rows_range": [
+        29012,
+        29968
+      ],
+      "concurrent_threads_ctxsw_rows_range": [
+        31820,
+        32744
+      ],
+      "serial_processes_ctxsw_rows_range": [
+        27378,
+        28464
+      ],
+      "concurrent_processes_ctxsw_rows_range": [
+        32152,
+        32868
+      ],
+      "interpretation": "Massive context switches (~30k-33k per 2s window) in both serial and concurrent modes confirm GPU hardware engine time-slicing between OpenGL and CUDA."
+    },
+    "profiles": [
+      {
+        "cell": "1024_solo-render_threads",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 0,
+        "gl_workload_rows": 96940,
+        "gpu_context_switch_rows": 2,
+        "gpu_metric_rows": 78738,
+        "metric_sample_timestamps": 3579,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults."
+        ],
+        "kernel_attributes": [],
+        "gl_workload_types": [
+          "glBindFramebuffer",
+          "glClear",
+          "glDrawArrays"
+        ]
+      },
+      {
+        "cell": "1024_solo-compute_threads",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 226998,
+        "gl_workload_rows": 0,
+        "gpu_context_switch_rows": 4,
+        "gpu_metric_rows": 78738,
+        "metric_sample_timestamps": 3579,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults.",
+          "No OpenGL events collected. Does the process use OpenGL?"
+        ],
+        "kernel_attributes": [
+          {
+            "name": "compute_tagged_workload_kernel(float *, const float *, unsigned long, int, unsigned long)",
+            "count": 226998,
+            "registers_per_thread_min": 16,
+            "registers_per_thread_max": 16,
+            "static_shared_mem_min": 0,
+            "static_shared_mem_max": 0,
+            "dynamic_shared_mem_min": 0,
+            "dynamic_shared_mem_max": 0,
+            "grid_x_min": 4,
+            "grid_x_max": 4,
+            "block_x_min": 256,
+            "block_x_max": 256,
+            "duration_ns_min": 3839,
+            "duration_ns_avg": 4090.196182345219,
+            "duration_ns_max": 6336
+          }
+        ],
+        "gl_workload_types": []
+      },
+      {
+        "cell": "1024_serial_threads",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 12480,
+        "gl_workload_rows": 15450,
+        "gpu_context_switch_rows": 29968,
+        "gpu_metric_rows": 82082,
+        "metric_sample_timestamps": 3731,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults."
+        ],
+        "kernel_attributes": [
+          {
+            "name": "compute_tagged_workload_kernel(float *, const float *, unsigned long, int, unsigned long)",
+            "count": 12480,
+            "registers_per_thread_min": 16,
+            "registers_per_thread_max": 16,
+            "static_shared_mem_min": 0,
+            "static_shared_mem_max": 0,
+            "dynamic_shared_mem_min": 0,
+            "dynamic_shared_mem_max": 0,
+            "grid_x_min": 4,
+            "grid_x_max": 4,
+            "block_x_min": 256,
+            "block_x_max": 256,
+            "duration_ns_min": 3807,
+            "duration_ns_avg": 3950.024358974359,
+            "duration_ns_max": 5408
+          }
+        ],
+        "gl_workload_types": [
+          "glBindFramebuffer",
+          "glClear",
+          "glDrawArrays"
+        ]
+      },
+      {
+        "cell": "1024_concurrent_threads",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 15610,
+        "gl_workload_rows": 16847,
+        "gpu_context_switch_rows": 32744,
+        "gpu_metric_rows": 81818,
+        "metric_sample_timestamps": 3719,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults."
+        ],
+        "kernel_attributes": [
+          {
+            "name": "compute_tagged_workload_kernel(float *, const float *, unsigned long, int, unsigned long)",
+            "count": 15610,
+            "registers_per_thread_min": 16,
+            "registers_per_thread_max": 16,
+            "static_shared_mem_min": 0,
+            "static_shared_mem_max": 0,
+            "dynamic_shared_mem_min": 0,
+            "dynamic_shared_mem_max": 0,
+            "grid_x_min": 4,
+            "grid_x_max": 4,
+            "block_x_min": 256,
+            "block_x_max": 256,
+            "duration_ns_min": 3807,
+            "duration_ns_avg": 3948.268866111467,
+            "duration_ns_max": 5248
+          }
+        ],
+        "gl_workload_types": [
+          "glBindFramebuffer",
+          "glClear",
+          "glDrawArrays"
+        ]
+      },
+      {
+        "cell": "1024_serial_processes",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 10630,
+        "gl_workload_rows": 14694,
+        "gpu_context_switch_rows": 28464,
+        "gpu_metric_rows": 87362,
+        "metric_sample_timestamps": 3971,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults.",
+          "No NVTX events collected. Does the process use NVTX?",
+          "No OpenGL events collected. Does the process use OpenGL?",
+          "No OpenGL events collected. Does the process use OpenGL?",
+          "CUDA profiling might have not been started correctly.",
+          "No CUDA events collected. Does the process use CUDA?"
+        ],
+        "kernel_attributes": [
+          {
+            "name": "compute_tagged_workload_kernel(float *, const float *, unsigned long, int, unsigned long)",
+            "count": 10630,
+            "registers_per_thread_min": 16,
+            "registers_per_thread_max": 16,
+            "static_shared_mem_min": 0,
+            "static_shared_mem_max": 0,
+            "dynamic_shared_mem_min": 0,
+            "dynamic_shared_mem_max": 0,
+            "grid_x_min": 4,
+            "grid_x_max": 4,
+            "block_x_min": 256,
+            "block_x_max": 256,
+            "duration_ns_min": 3807,
+            "duration_ns_avg": 3972.6685794920036,
+            "duration_ns_max": 5119
+          }
+        ],
+        "gl_workload_types": [
+          "glBindFramebuffer",
+          "glClear",
+          "glDrawArrays"
+        ]
+      },
+      {
+        "cell": "1024_concurrent_processes",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 14996,
+        "gl_workload_rows": 16892,
+        "gpu_context_switch_rows": 32868,
+        "gpu_metric_rows": 85162,
+        "metric_sample_timestamps": 3871,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults.",
+          "No NVTX events collected. Does the process use NVTX?",
+          "No OpenGL events collected. Does the process use OpenGL?",
+          "No OpenGL events collected. Does the process use OpenGL?",
+          "CUDA profiling might have not been started correctly.",
+          "No CUDA events collected. Does the process use CUDA?"
+        ],
+        "kernel_attributes": [
+          {
+            "name": "compute_tagged_workload_kernel(float *, const float *, unsigned long, int, unsigned long)",
+            "count": 14996,
+            "registers_per_thread_min": 16,
+            "registers_per_thread_max": 16,
+            "static_shared_mem_min": 0,
+            "static_shared_mem_max": 0,
+            "dynamic_shared_mem_min": 0,
+            "dynamic_shared_mem_max": 0,
+            "grid_x_min": 4,
+            "grid_x_max": 4,
+            "block_x_min": 256,
+            "block_x_max": 256,
+            "duration_ns_min": 3807,
+            "duration_ns_avg": 3941.8400240064016,
+            "duration_ns_max": 5280
+          }
+        ],
+        "gl_workload_types": [
+          "glBindFramebuffer",
+          "glClear"
+        ]
+      },
+      {
+        "cell": "262144_solo-render_threads",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 0,
+        "gl_workload_rows": 90456,
+        "gpu_context_switch_rows": 2,
+        "gpu_metric_rows": 72930,
+        "metric_sample_timestamps": 3315,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults."
+        ],
+        "kernel_attributes": [],
+        "gl_workload_types": [
+          "glBindFramebuffer",
+          "glClear",
+          "glDrawArrays"
+        ]
+      },
+      {
+        "cell": "262144_solo-compute_threads",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 125926,
+        "gl_workload_rows": 0,
+        "gpu_context_switch_rows": 4,
+        "gpu_metric_rows": 79486,
+        "metric_sample_timestamps": 3613,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults.",
+          "No OpenGL events collected. Does the process use OpenGL?"
+        ],
+        "kernel_attributes": [
+          {
+            "name": "compute_tagged_workload_kernel(float *, const float *, unsigned long, int, unsigned long)",
+            "count": 125926,
+            "registers_per_thread_min": 16,
+            "registers_per_thread_max": 16,
+            "static_shared_mem_min": 0,
+            "static_shared_mem_max": 0,
+            "dynamic_shared_mem_min": 0,
+            "dynamic_shared_mem_max": 0,
+            "grid_x_min": 1024,
+            "grid_x_max": 1024,
+            "block_x_min": 256,
+            "block_x_max": 256,
+            "duration_ns_min": 14175,
+            "duration_ns_avg": 14723.21193399298,
+            "duration_ns_max": 21760
+          }
+        ],
+        "gl_workload_types": []
+      },
+      {
+        "cell": "262144_serial_threads",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 9434,
+        "gl_workload_rows": 14782,
+        "gpu_context_switch_rows": 29012,
+        "gpu_metric_rows": 79354,
+        "metric_sample_timestamps": 3607,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults."
+        ],
+        "kernel_attributes": [
+          {
+            "name": "compute_tagged_workload_kernel(float *, const float *, unsigned long, int, unsigned long)",
+            "count": 9434,
+            "registers_per_thread_min": 16,
+            "registers_per_thread_max": 16,
+            "static_shared_mem_min": 0,
+            "static_shared_mem_max": 0,
+            "dynamic_shared_mem_min": 0,
+            "dynamic_shared_mem_max": 0,
+            "grid_x_min": 1024,
+            "grid_x_max": 1024,
+            "block_x_min": 256,
+            "block_x_max": 256,
+            "duration_ns_min": 14207,
+            "duration_ns_avg": 14650.961098155607,
+            "duration_ns_max": 20832
+          }
+        ],
+        "gl_workload_types": [
+          "glBindFramebuffer",
+          "glClear",
+          "glDrawArrays"
+        ]
+      },
+      {
+        "cell": "262144_concurrent_threads",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 12544,
+        "gl_workload_rows": 16349,
+        "gpu_context_switch_rows": 31820,
+        "gpu_metric_rows": 80850,
+        "metric_sample_timestamps": 3675,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults."
+        ],
+        "kernel_attributes": [
+          {
+            "name": "compute_tagged_workload_kernel(float *, const float *, unsigned long, int, unsigned long)",
+            "count": 12544,
+            "registers_per_thread_min": 16,
+            "registers_per_thread_max": 16,
+            "static_shared_mem_min": 0,
+            "static_shared_mem_max": 0,
+            "dynamic_shared_mem_min": 0,
+            "dynamic_shared_mem_max": 0,
+            "grid_x_min": 1024,
+            "grid_x_max": 1024,
+            "block_x_min": 256,
+            "block_x_max": 256,
+            "duration_ns_min": 14176,
+            "duration_ns_avg": 14457.837611607143,
+            "duration_ns_max": 18848
+          }
+        ],
+        "gl_workload_types": [
+          "glBindFramebuffer",
+          "glClear"
+        ]
+      },
+      {
+        "cell": "262144_serial_processes",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 7733,
+        "gl_workload_rows": 13786,
+        "gpu_context_switch_rows": 27378,
+        "gpu_metric_rows": 83710,
+        "metric_sample_timestamps": 3805,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults.",
+          "No NVTX events collected. Does the process use NVTX?",
+          "No OpenGL events collected. Does the process use OpenGL?",
+          "No OpenGL events collected. Does the process use OpenGL?",
+          "CUDA profiling might have not been started correctly.",
+          "No CUDA events collected. Does the process use CUDA?"
+        ],
+        "kernel_attributes": [
+          {
+            "name": "compute_tagged_workload_kernel(float *, const float *, unsigned long, int, unsigned long)",
+            "count": 7733,
+            "registers_per_thread_min": 16,
+            "registers_per_thread_max": 16,
+            "static_shared_mem_min": 0,
+            "static_shared_mem_max": 0,
+            "dynamic_shared_mem_min": 0,
+            "dynamic_shared_mem_max": 0,
+            "grid_x_min": 1024,
+            "grid_x_max": 1024,
+            "block_x_min": 256,
+            "block_x_max": 256,
+            "duration_ns_min": 14208,
+            "duration_ns_avg": 14949.410578042158,
+            "duration_ns_max": 22335
+          }
+        ],
+        "gl_workload_types": [
+          "glBindFramebuffer",
+          "glClear"
+        ]
+      },
+      {
+        "cell": "262144_concurrent_processes",
+        "sqlite_present": true,
+        "integrity": "ok",
+        "kernel_rows": 11657,
+        "gl_workload_rows": 16537,
+        "gpu_context_switch_rows": 32152,
+        "gpu_metric_rows": 84106,
+        "metric_sample_timestamps": 3823,
+        "switch_tags_observed": [
+          "SAVE_END",
+          "RESTORE_START"
+        ],
+        "cuda_sw_fallback_warning": true,
+        "cpu_ctxsw_warning": true,
+        "warning_messages": [
+          "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults.",
+          "No NVTX events collected. Does the process use NVTX?",
+          "No OpenGL events collected. Does the process use OpenGL?",
+          "No OpenGL events collected. Does the process use OpenGL?",
+          "CUDA profiling might have not been started correctly.",
+          "No CUDA events collected. Does the process use CUDA?"
+        ],
+        "kernel_attributes": [
+          {
+            "name": "compute_tagged_workload_kernel(float *, const float *, unsigned long, int, unsigned long)",
+            "count": 11657,
+            "registers_per_thread_min": 16,
+            "registers_per_thread_max": 16,
+            "static_shared_mem_min": 0,
+            "static_shared_mem_max": 0,
+            "dynamic_shared_mem_min": 0,
+            "dynamic_shared_mem_max": 0,
+            "grid_x_min": 1024,
+            "grid_x_max": 1024,
+            "block_x_min": 256,
+            "block_x_max": 256,
+            "duration_ns_min": 14207,
+            "duration_ns_avg": 14455.50476108776,
+            "duration_ns_max": 16416
+          }
+        ],
+        "gl_workload_types": [
+          "glBindFramebuffer",
+          "glClear",
+          "glDrawArrays"
+        ]
+      }
+    ]
+  },
+  "scheduling_verdict": {
+    "active_spatial_sharing": false,
+    "tsg_co_membership": false,
+    "finding": "Standard native EGL/OpenGL rendering and CUDA model computation do not co-execute spatially on the A100 GPU. Concurrent execution inflates per-operation latencies from solo baselines (~27us GL / ~10.6us CUDA) to ~326-337us, matching GPU time-slicing engine context switches (~32k switches / 2s). Gate 4 conclusive result: negative for native API co-execution; spatial sharing requires internal driver/TSG manipulation (Gate 5)."
+  }
+}

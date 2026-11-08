@@ -1,6 +1,5 @@
 #include "benchmark_runner.h"
-#include <nvtx3/nvToolsExt.h>
-
+#include "nvtx_wrapper.h"
 #include <iostream>
 #include <iomanip>
 #include <thread>
@@ -9,6 +8,24 @@
 #include <algorithm>
 #include <numeric>
 #include <cmath>
+
+#include <sstream>
+#include <stdexcept>
+#include <utility>
+
+namespace {
+void checkCuda(cudaError_t err, const char* msg) {
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string(msg) + ": " + cudaGetErrorString(err));
+    }
+}
+
+struct NvtxRangeGuard {
+    NvtxScope scope;
+    explicit NvtxRangeGuard(const char* name) : scope(name) {}
+    void pop() { scope.pop(); }
+};
+} // anonymous namespace
 
 BenchmarkRunner::BenchmarkRunner(const BenchmarkConfig& config)
     : config_(config),
@@ -113,24 +130,27 @@ TimingStats BenchmarkRunner::runSoloRender() {
     }
 
     std::vector<double> latencies_us(config_.iterations);
-    nvtxRangePushA("Solo_EGL_Render");
-    auto start_wall = std::chrono::high_resolution_clock::now();
+    double wall_ms = 0.0;
+    {
+        NvtxRangeGuard nvtx("Solo_EGL_Render");
+        auto start_wall = std::chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < config_.iterations; ++i) {
-        auto t0 = std::chrono::high_resolution_clock::now();
-        renderer_.renderFrame();
-        auto t1 = std::chrono::high_resolution_clock::now();
-        latencies_us[i] = std::chrono::duration<double, std::micro>(t1 - t0).count();
+        for (int i = 0; i < config_.iterations; ++i) {
+            auto t0 = std::chrono::high_resolution_clock::now();
+            renderer_.renderFrame();
+            auto t1 = std::chrono::high_resolution_clock::now();
+            latencies_us[i] = std::chrono::duration<double, std::micro>(t1 - t0).count();
+        }
+
+        auto end_wall = std::chrono::high_resolution_clock::now();
+        wall_ms = std::chrono::duration<double, std::milli>(end_wall - start_wall).count();
     }
-
-    auto end_wall = std::chrono::high_resolution_clock::now();
-    nvtxRangePop();
-    double wall_ms = std::chrono::duration<double, std::milli>(end_wall - start_wall).count();
 
     // Verify rendered output at the end of baseline run
     if (!renderer_.readPixelsAndVerify()) {
-        std::cerr << "  WARNING: Solo render output verification failed post-benchmark!" << std::endl;
+        throw std::runtime_error("Solo EGL Render verification failed");
     }
+    std::cout << "[Verification] Solo EGL Render: PASSED" << std::endl;
 
     return computeStats("Solo EGL Render", latencies_us, wall_ms);
 }
@@ -140,36 +160,49 @@ TimingStats BenchmarkRunner::runSoloCompute() {
               << config_.iterations << " iterations, " << config_.warmup << " warmup)..." << std::endl;
 
     cudaStream_t stream = nullptr;
-    cudaStreamCreate(&stream);
+    checkCuda(cudaStreamCreate(&stream), "Solo compute cudaStreamCreate failed");
+
+    struct StreamCleanup {
+        cudaStream_t s;
+        ~StreamCleanup() {
+            if (s) {
+                cudaStreamDestroy(s);
+            }
+        }
+    } cleanup{stream};
 
     // Warmup
-    for (int i = 0; i < config_.warmup; ++i) {
-        compute_.launchCompute(stream);
-        compute_.synchronize(stream);
+     for (int i = 0; i < config_.warmup; ++i) {
+         compute_.launchCompute(stream);
+         compute_.synchronize(stream);
+     }
+
+     std::vector<double> latencies_us(config_.iterations);
+    double wall_ms = 0.0;
+    {
+        NvtxRangeGuard nvtx("Solo_CUDA_Compute");
+        auto start_wall = std::chrono::high_resolution_clock::now();
+
+        for (int i = 0; i < config_.iterations; ++i) {
+            auto t0 = std::chrono::high_resolution_clock::now();
+            compute_.launchCompute(stream);
+            compute_.synchronize(stream);
+            auto t1 = std::chrono::high_resolution_clock::now();
+            latencies_us[i] = std::chrono::duration<double, std::micro>(t1 - t0).count();
+        }
+
+        auto end_wall = std::chrono::high_resolution_clock::now();
+        wall_ms = std::chrono::duration<double, std::milli>(end_wall - start_wall).count();
     }
 
-    std::vector<double> latencies_us(config_.iterations);
-    nvtxRangePushA("Solo_CUDA_Compute");
-    auto start_wall = std::chrono::high_resolution_clock::now();
-
-    for (int i = 0; i < config_.iterations; ++i) {
-        auto t0 = std::chrono::high_resolution_clock::now();
-        compute_.launchCompute(stream);
-        compute_.synchronize(stream);
-        auto t1 = std::chrono::high_resolution_clock::now();
-        latencies_us[i] = std::chrono::duration<double, std::micro>(t1 - t0).count();
-    }
-
-    auto end_wall = std::chrono::high_resolution_clock::now();
-    nvtxRangePop();
-    double wall_ms = std::chrono::duration<double, std::milli>(end_wall - start_wall).count();
-
-    cudaStreamDestroy(stream);
+    cleanup.s = nullptr;
+    checkCuda(cudaStreamDestroy(stream), "Solo compute cudaStreamDestroy failed");
 
     // Verify compute output
     if (!compute_.verifyOutput()) {
-        std::cerr << "  WARNING: Solo compute numerical verification failed post-benchmark!" << std::endl;
+        throw std::runtime_error("Solo CUDA Compute verification failed");
     }
+    std::cout << "[Verification] Solo CUDA Compute: PASSED" << std::endl;
 
     return computeStats("Solo CUDA Compute", latencies_us, wall_ms);
 }
@@ -179,7 +212,16 @@ TimingStats BenchmarkRunner::runSerialInterleaved() {
               << config_.iterations << " iterations)..." << std::endl;
 
     cudaStream_t stream = nullptr;
-    cudaStreamCreate(&stream);
+    checkCuda(cudaStreamCreate(&stream), "Serial interleaved cudaStreamCreate failed");
+
+    struct StreamCleanup {
+        cudaStream_t s;
+        ~StreamCleanup() {
+            if (s) {
+                cudaStreamDestroy(s);
+            }
+        }
+    } cleanup{stream};
 
     // Warmup
     for (int i = 0; i < config_.warmup; ++i) {
@@ -189,120 +231,272 @@ TimingStats BenchmarkRunner::runSerialInterleaved() {
     }
 
     std::vector<double> latencies_us(config_.iterations);
-    nvtxRangePushA("Serial_Interleaved");
-    auto start_wall = std::chrono::high_resolution_clock::now();
+    double wall_ms = 0.0;
+    {
+        NvtxRangeGuard nvtx("Serial_Interleaved");
+        auto start_wall = std::chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < config_.iterations; ++i) {
-        auto t0 = std::chrono::high_resolution_clock::now();
-        renderer_.renderFrame();
-        compute_.launchCompute(stream);
-        compute_.synchronize(stream);
-        auto t1 = std::chrono::high_resolution_clock::now();
-        latencies_us[i] = std::chrono::duration<double, std::micro>(t1 - t0).count();
+        for (int i = 0; i < config_.iterations; ++i) {
+            auto t0 = std::chrono::high_resolution_clock::now();
+            renderer_.renderFrame();
+            compute_.launchCompute(stream);
+            compute_.synchronize(stream);
+            auto t1 = std::chrono::high_resolution_clock::now();
+            latencies_us[i] = std::chrono::duration<double, std::micro>(t1 - t0).count();
+        }
+
+        auto end_wall = std::chrono::high_resolution_clock::now();
+        wall_ms = std::chrono::duration<double, std::milli>(end_wall - start_wall).count();
     }
 
-    auto end_wall = std::chrono::high_resolution_clock::now();
-    nvtxRangePop();
-    double wall_ms = std::chrono::duration<double, std::milli>(end_wall - start_wall).count();
+    cleanup.s = nullptr;
+    checkCuda(cudaStreamDestroy(stream), "Serial interleaved cudaStreamDestroy failed");
 
-    cudaStreamDestroy(stream);
+    // Verify rendered and compute outputs post-benchmark
+    if (!renderer_.readPixelsAndVerify()) {
+        throw std::runtime_error("Serial Interleaved EGL verification failed");
+    }
+    std::cout << "[Verification] Serial Interleaved EGL: PASSED" << std::endl;
+
+    if (!compute_.verifyOutput()) {
+        throw std::runtime_error("Serial Interleaved CUDA verification failed");
+    }
+    std::cout << "[Verification] Serial Interleaved CUDA: PASSED" << std::endl;
 
     return computeStats("Serial Interleaved", latencies_us, wall_ms);
 }
 
-TimingStats BenchmarkRunner::runConcurrentMultiThreaded() {
+std::pair<TimingStats, TimingStats> BenchmarkRunner::runConcurrentMultiThreaded() {
     std::cout << "\n>>> [4/4] Running Concurrent Multi-Threaded Probe (Thread 1: Render, Thread 2: Compute) ("
               << config_.iterations << " iterations)..." << std::endl;
 
     // Release context from main thread so Worker Thread can make it current
-    eglMakeCurrent(renderer_.getDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    if (!eglMakeCurrent(renderer_.getDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) {
+        throw std::runtime_error("Failed to unbind EGL context from main thread");
+    }
 
     std::atomic<bool> start_flag(false);
+    std::atomic<bool> abort_flag(false);
     std::atomic<bool> ready_render(false);
     std::atomic<bool> ready_compute(false);
+
+    std::exception_ptr render_exception = nullptr;
+    std::exception_ptr compute_exception = nullptr;
 
     std::vector<double> render_latencies_us(config_.iterations);
     std::vector<double> compute_latencies_us(config_.iterations);
 
     // Worker 1: Render thread
     auto render_worker = [&]() {
-        nvtxRangePushA("Worker_EGL_Render");
-        // Bind EGL context to this thread
-        if (!eglMakeCurrent(renderer_.getDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, renderer_.getContext())) {
-            std::cerr << "  [RenderWorker] eglMakeCurrent failed in thread!" << std::endl;
-            return;
+        bool nvtx_pushed = false;
+        bool context_bound = false;
+        try {
+            nvtx_push("Worker_EGL_Render");
+            nvtx_pushed = true;
+
+            // Set client API to OpenGL for this thread
+            if (!eglBindAPI(EGL_OPENGL_API)) {
+                throw std::runtime_error("Render worker failed to bind EGL_OPENGL_API");
+            }
+
+            // Bind EGL context to this thread
+            if (!eglMakeCurrent(renderer_.getDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, renderer_.getContext())) {
+                throw std::runtime_error("Render worker failed to bind EGL context");
+            }
+            context_bound = true;
+
+            ready_render.store(true, std::memory_order_release);
+
+            while (!start_flag.load(std::memory_order_acquire) && !abort_flag.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+
+            if (!abort_flag.load(std::memory_order_acquire)) {
+                for (int i = 0; i < config_.iterations; ++i) {
+                    if (abort_flag.load(std::memory_order_acquire)) {
+                        break;
+                    }
+                    auto t0 = std::chrono::high_resolution_clock::now();
+                    renderer_.renderFrame();
+                    auto t1 = std::chrono::high_resolution_clock::now();
+                    render_latencies_us[i] = std::chrono::duration<double, std::micro>(t1 - t0).count();
+                }
+            }
+        } catch (...) {
+            render_exception = std::current_exception();
+            abort_flag.store(true, std::memory_order_release);
+            ready_render.store(true, std::memory_order_release);
         }
 
-        ready_render.store(true);
-        while (!start_flag.load()) {
-            std::this_thread::yield();
+        std::exception_ptr cleanup_err = nullptr;
+        if (context_bound) {
+            if (!eglMakeCurrent(renderer_.getDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)) {
+                cleanup_err = std::make_exception_ptr(std::runtime_error("Render worker failed to unbind EGL context"));
+            }
         }
-
-        for (int i = 0; i < config_.iterations; ++i) {
-            auto t0 = std::chrono::high_resolution_clock::now();
-            renderer_.renderFrame();
-            auto t1 = std::chrono::high_resolution_clock::now();
-            render_latencies_us[i] = std::chrono::duration<double, std::micro>(t1 - t0).count();
+        if (nvtx_pushed) {
+            nvtx_pop();
         }
-
-        // Release context
-        eglMakeCurrent(renderer_.getDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        nvtxRangePop();
+        if (cleanup_err && !render_exception) {
+            render_exception = cleanup_err;
+        }
     };
 
     // Worker 2: Compute thread
     auto compute_worker = [&]() {
-        nvtxRangePushA("Worker_CUDA_Compute");
-        cudaSetDevice(config_.target_device);
+        bool nvtx_pushed = false;
         cudaStream_t stream = nullptr;
-        cudaStreamCreate(&stream);
+        try {
+            nvtx_push("Worker_CUDA_Compute");
+            nvtx_pushed = true;
 
-        ready_compute.store(true);
-        while (!start_flag.load()) {
-            std::this_thread::yield();
+            cudaError_t err = cudaSetDevice(config_.target_device);
+            if (err != cudaSuccess) {
+                throw std::runtime_error(std::string("CUDA worker cudaSetDevice failed: ") + cudaGetErrorString(err));
+            }
+
+            err = cudaStreamCreate(&stream);
+            if (err != cudaSuccess) {
+                throw std::runtime_error(std::string("CUDA worker cudaStreamCreate failed: ") + cudaGetErrorString(err));
+            }
+
+            ready_compute.store(true, std::memory_order_release);
+
+            while (!start_flag.load(std::memory_order_acquire) && !abort_flag.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+
+            if (!abort_flag.load(std::memory_order_acquire)) {
+                for (int i = 0; i < config_.iterations; ++i) {
+                    if (abort_flag.load(std::memory_order_acquire)) {
+                        break;
+                    }
+                    auto t0 = std::chrono::high_resolution_clock::now();
+                    compute_.launchCompute(stream);
+                    compute_.synchronize(stream);
+                    auto t1 = std::chrono::high_resolution_clock::now();
+                    compute_latencies_us[i] = std::chrono::duration<double, std::micro>(t1 - t0).count();
+                }
+            }
+        } catch (...) {
+            compute_exception = std::current_exception();
+            abort_flag.store(true, std::memory_order_release);
+            ready_compute.store(true, std::memory_order_release);
         }
 
-        for (int i = 0; i < config_.iterations; ++i) {
-            auto t0 = std::chrono::high_resolution_clock::now();
-            compute_.launchCompute(stream);
-            compute_.synchronize(stream);
-            auto t1 = std::chrono::high_resolution_clock::now();
-            compute_latencies_us[i] = std::chrono::duration<double, std::micro>(t1 - t0).count();
+        std::exception_ptr cleanup_err = nullptr;
+        if (stream) {
+            cudaError_t err = cudaStreamDestroy(stream);
+            if (err != cudaSuccess) {
+                cleanup_err = std::make_exception_ptr(std::runtime_error(
+                    std::string("CUDA worker cudaStreamDestroy failed: ") + cudaGetErrorString(err)));
+            }
         }
-
-        cudaStreamDestroy(stream);
-        nvtxRangePop();
+        if (nvtx_pushed) {
+            nvtx_pop();
+        }
+        if (cleanup_err && !compute_exception) {
+            compute_exception = cleanup_err;
+        }
     };
 
-    std::thread t1(render_worker);
-    std::thread t2(compute_worker);
+    std::thread t1;
+    std::thread t2;
+    try {
+        t1 = std::thread(render_worker);
+        t2 = std::thread(compute_worker);
+    } catch (...) {
+        abort_flag.store(true, std::memory_order_release);
+        if (t1.joinable()) {
+            t1.join();
+        }
+        if (t2.joinable()) {
+            t2.join();
+        }
+        eglMakeCurrent(renderer_.getDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, renderer_.getContext());
+        throw;
+    }
 
-    // Wait until both workers are ready
-    while (!ready_render.load() || !ready_compute.load()) {
+    // Wait until both workers are ready (or published failure)
+    while (!ready_render.load(std::memory_order_acquire) || !ready_compute.load(std::memory_order_acquire)) {
         std::this_thread::yield();
     }
 
-    nvtxRangePushA("Concurrent_Multi_Threaded");
-    auto start_wall = std::chrono::high_resolution_clock::now();
-    start_flag.store(true);
+    double wall_ms = 0.0;
+    if (render_exception || compute_exception) {
+        abort_flag.store(true, std::memory_order_release);
+        t1.join();
+        t2.join();
 
-    t1.join();
-    t2.join();
-    auto end_wall = std::chrono::high_resolution_clock::now();
-    nvtxRangePop();
-    double wall_ms = std::chrono::duration<double, std::milli>(end_wall - start_wall).count();
+        // Restore main context
+        if (!eglMakeCurrent(renderer_.getDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, renderer_.getContext())) {
+            std::cerr << "[BenchmarkRunner] Failed to rebind EGL context to main thread" << std::endl;
+        }
 
-    // Rebind context to main thread
-    eglMakeCurrent(renderer_.getDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, renderer_.getContext());
+        if (render_exception) {
+            std::rethrow_exception(render_exception);
+        }
+        if (compute_exception) {
+            std::rethrow_exception(compute_exception);
+        }
+    } else {
+        nvtx_push("Concurrent_Multi_Threaded");
+        auto start_wall = std::chrono::high_resolution_clock::now();
+        start_flag.store(true, std::memory_order_release);
 
-    return computeStats("Concurrent Multi-Threaded", render_latencies_us, wall_ms);
+        t1.join();
+        t2.join();
+        auto end_wall = std::chrono::high_resolution_clock::now();
+        nvtx_pop();
+        wall_ms = std::chrono::duration<double, std::milli>(end_wall - start_wall).count();
+
+        // Rebind context to main thread
+        if (!eglMakeCurrent(renderer_.getDisplay(), EGL_NO_SURFACE, EGL_NO_SURFACE, renderer_.getContext())) {
+            std::string err_msg = "Failed to rebind EGL context to main thread";
+            if (render_exception) {
+                std::cerr << "[BenchmarkRunner] " << err_msg << std::endl;
+                std::rethrow_exception(render_exception);
+            } else if (compute_exception) {
+                std::cerr << "[BenchmarkRunner] " << err_msg << std::endl;
+                std::rethrow_exception(compute_exception);
+            } else {
+                throw std::runtime_error(err_msg);
+            }
+        }
+
+        if (render_exception) {
+            std::rethrow_exception(render_exception);
+        }
+        if (compute_exception) {
+            std::rethrow_exception(compute_exception);
+        }
+    }
+
+    // Verify rendered output post-benchmark
+    if (!renderer_.readPixelsAndVerify()) {
+        throw std::runtime_error("Concurrent EGL verification failed");
+    }
+    std::cout << "[Verification] Concurrent EGL: PASSED" << std::endl;
+
+    // Verify compute output post-benchmark
+    if (!compute_.verifyOutput()) {
+        throw std::runtime_error("Concurrent CUDA verification failed");
+    }
+    std::cout << "[Verification] Concurrent CUDA: PASSED" << std::endl;
+
+    TimingStats render_stats = computeStats("Concurrent EGL Render", render_latencies_us, wall_ms);
+    TimingStats compute_stats = computeStats("Concurrent CUDA Compute", compute_latencies_us, wall_ms);
+
+    return {render_stats, compute_stats};
 }
 
 void BenchmarkRunner::runAll() {
     stats_solo_render_ = runSoloRender();
     stats_solo_compute_ = runSoloCompute();
     stats_serial_ = runSerialInterleaved();
-    stats_concurrent_ = runConcurrentMultiThreaded();
+    auto concurrent_stats = runConcurrentMultiThreaded();
+    stats_concurrent_render_ = concurrent_stats.first;
+    stats_concurrent_compute_ = concurrent_stats.second;
     printReport();
 }
 
@@ -310,7 +504,7 @@ void BenchmarkRunner::printReport() const {
     double solo_render_ms = stats_solo_render_.total_wall_ms;
     double solo_compute_ms = stats_solo_compute_.total_wall_ms;
     double serial_ms = stats_serial_.total_wall_ms;
-    double concurrent_ms = stats_concurrent_.total_wall_ms;
+    double concurrent_ms = stats_concurrent_render_.total_wall_ms;
 
     double theoretical_serial_sum_ms = solo_render_ms + solo_compute_ms;
     double speedup_vs_serial = (concurrent_ms > 0) ? (serial_ms / concurrent_ms) : 0.0;
@@ -338,27 +532,32 @@ void BenchmarkRunner::printReport() const {
               << std::setw(14) << "| Total (ms)"
               << std::setw(14) << "| Mean (us)"
               << std::setw(14) << "| p50 (us)"
+              << std::setw(14) << "| p95 (us)"
               << std::setw(14) << "| p99 (us)"
-              << std::setw(16) << "| Throughput"
+              << std::setw(25) << "| Throughput"
               << " |" << std::endl;
-    std::cout << "|--------------------------|-------------|-------------|-------------|-------------|----------------|" << std::endl;
+    std::cout << "|--------------------------|-------------|-------------|-------------|-------------|-------------|-------------------------|" << std::endl;
 
     auto print_row = [](const TimingStats& s, const std::string& unit) {
+        std::ostringstream ss;
+        ss << std::fixed << std::setprecision(1) << s.throughput_ops_sec << " " << unit;
         std::cout << "| " << std::left << std::setw(24) << s.name
                   << " | " << std::right << std::setw(11) << std::fixed << std::setprecision(2) << s.total_wall_ms
                   << " | " << std::setw(11) << std::fixed << std::setprecision(1) << s.mean_us
                   << " | " << std::setw(11) << std::fixed << std::setprecision(1) << s.p50_us
+                  << " | " << std::setw(11) << std::fixed << std::setprecision(1) << s.p95_us
                   << " | " << std::setw(11) << std::fixed << std::setprecision(1) << s.p99_us
-                  << " | " << std::setw(10) << std::fixed << std::setprecision(1) << s.throughput_ops_sec << " " << unit
+                  << " | " << std::right << std::setw(23) << ss.str()
                   << " |" << std::endl;
     };
 
-    print_row(stats_solo_render_, "fps");
-    print_row(stats_solo_compute_, "ips");
+    print_row(stats_solo_render_, "frame/s");
+    print_row(stats_solo_compute_, "compute iterations/s");
     print_row(stats_serial_, "pairs/s");
-    print_row(stats_concurrent_, "pairs/s");
+    print_row(stats_concurrent_render_, "frame/s");
+    print_row(stats_concurrent_compute_, "compute iterations/s");
 
-    std::cout << "------------------------------------------------------------------------------------------" << std::endl;
+    std::cout << "|----------------------------------------------------------------------------------------------------------------------|" << std::endl;
 
     std::cout << "\nAnalysis & Concurrency Metrics:" << std::endl;
     std::cout << "  Theoretical Serial Sum (Solo Render + Solo Compute): "
@@ -373,15 +572,8 @@ void BenchmarkRunner::printReport() const {
               << std::fixed << std::setprecision(3) << speedup_vs_serial << "x" << std::endl;
 
     std::cout << "\nInterpretation:" << std::endl;
-    if (speedup_vs_sum >= 1.20) {
-        std::cout << "  -> SIGNIFICANT CONCURRENCY: Observed speedup (" << speedup_vs_sum
-                  << "x) indicates hardware overlap / spatial sharing of GPU resources." << std::endl;
-    } else if (speedup_vs_sum >= 0.95 && speedup_vs_sum < 1.20) {
-        std::cout << "  -> TIME-SLICED / SERIALIZED: Observed speedup (" << speedup_vs_sum
-                  << "x) is close to 1.0x, indicating GPU driver serializes graphics and compute via Timeslice Groups (TSGs)." << std::endl;
-    } else {
-        std::cout << "  -> RESOURCE CONTENTION / SLOWDOWN: Observed speedup (" << speedup_vs_sum
-                  << "x) indicates contention or overhead under concurrent submission." << std::endl;
-    }
+    std::cout << "  -> INCONCLUSIVE: Timing ratios and throughput metrics alone cannot confirm" << std::endl;
+    std::cout << "     true spatial sharing or driver time-slicing (TSG) serialization." << std::endl;
+    std::cout << "     Hardware execution overlap requires GPU hardware trace validation (e.g. Nsight Systems)." << std::endl;
     std::cout << "==========================================================================================\n" << std::endl;
 }

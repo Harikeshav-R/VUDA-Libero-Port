@@ -28,6 +28,10 @@ public:
     void synchronize(cudaStream_t stream = nullptr);
     bool verifyOutput();
 
+    // EXP-009 Tagged iteration API
+    void launchTaggedCompute(uint64_t iteration, cudaStream_t stream = nullptr);
+    bool verifyTaggedOutput(uint64_t iteration);
+
     // Probe CUDA-OpenGL interop support for device-resident memory handoff
     bool testOpenGLInterop(GLuint rbo_color, int width, int height);
 

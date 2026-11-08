@@ -89,4 +89,6 @@ Request the author artifact/commit, supported driver/firmware configurations, ac
 
 Without that artifact, this is independent reverse engineering. A reviewed, **non-mutating own-process runtime observer** is the next credible object-discovery step after site review, not an offline or zero-risk operation. `strace` alone is not guaranteed to decode nested RM argument buffers, so no unverified tracing command is presented as a complete solution.
 
+**November 7 offline follow-up:** The [observer readiness review](GATE5_OBSERVER_REVIEW.md) now traces transfer-envelope routing, allocation-size dispatch, lifecycle payloads, and separate syscall/RM outcome channels in the same pinned release. It is a capture contract, not a compiled ABI check or implemented observer. No GL object graph/control mapping was captured, and no site approval was added.
+
 See the [Gate 5 decision and unsent support inquiry](GATE5_ASSESSMENT.md) for operational stages. OSC may approve, constrain, or reject the experiment; the reviewed policy does not establish a blanket ban. EPFL also needs its own permission/isolation/recovery review. No root access, driver change, kernel reload, GPU reset, or renderer replacement is prescribed.

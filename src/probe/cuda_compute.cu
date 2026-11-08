@@ -4,7 +4,9 @@
 #include <iostream>
 #include <cmath>
 #include <random>
-
+#include <cstdint>
+#include <cstring>
+#include <limits>
 __global__ void compute_workload_kernel(float* __restrict__ out, const float* __restrict__ in, size_t N, int intensity) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < N) {
@@ -13,6 +15,27 @@ __global__ void compute_workload_kernel(float* __restrict__ out, const float* __
         for (int i = 0; i < intensity; ++i) {
             val = fmaf(val, 1.0001f, 0.0002f);
             val = val - floorf(val);
+        }
+        out[idx] = val;
+    }
+}
+
+__global__ void compute_tagged_workload_kernel(float* __restrict__ out, const float* __restrict__ in, size_t N, int intensity, uint64_t tag) {
+    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < N) {
+        float val = in[idx];
+        #pragma unroll 8
+        for (int i = 0; i < intensity; ++i) {
+            val = fmaf(val, 1.0001f, 0.0002f);
+            val = val - floorf(val);
+        }
+        // Reserved slots for exact 64-bit tag (split across out[0] and out[1] as bitwise IEEE 754 float representation)
+        if (idx == 0) {
+            uint32_t low = static_cast<uint32_t>(tag & 0xFFFFFFFFULL);
+            val = __uint_as_float(low);
+        } else if (idx == 1) {
+            uint32_t high = static_cast<uint32_t>((tag >> 32) & 0xFFFFFFFFULL);
+            val = __uint_as_float(high);
         }
         out[idx] = val;
     }
@@ -62,6 +85,35 @@ bool CudaCompute::initialize(int target_device) {
     specs_.pci_bus_id = prop.pciBusID;
     specs_.pci_device_id = prop.pciDeviceID;
 
+    // Validate element count bounds:
+    // 1. Must be > 1000 per contract
+    // 2. Buffer size in bytes must not overflow size_t (SIZE_MAX / sizeof(float))
+    // 3. Grid block count must fit in int and not exceed prop.maxGridSize[0]
+    // 4. Compute intensity must be > 0
+    if (num_elements_ <= 1000) {
+        std::cerr << "[CudaCompute] initialize failed: num_elements (" << num_elements_
+                  << ") must be > 1000" << std::endl;
+        return false;
+    }
+    if (num_elements_ > (std::numeric_limits<size_t>::max() / sizeof(float))) {
+        std::cerr << "[CudaCompute] initialize failed: num_elements (" << num_elements_
+                  << ") exceeds size_t buffer capacity" << std::endl;
+        return false;
+    }
+    if (compute_intensity_ <= 0) {
+        std::cerr << "[CudaCompute] initialize failed: compute_intensity (" << compute_intensity_
+                  << ") must be > 0" << std::endl;
+        return false;
+    }
+
+    size_t blocks_needed = (num_elements_ / 256) + ((num_elements_ % 256 != 0) ? 1 : 0);
+    if (blocks_needed > static_cast<size_t>(prop.maxGridSize[0]) ||
+        blocks_needed > static_cast<size_t>(std::numeric_limits<int>::max())) {
+        std::cerr << "[CudaCompute] initialize failed: required grid blocks (" << blocks_needed
+                  << ") exceeds device maxGridSize[0] (" << prop.maxGridSize[0] << ")" << std::endl;
+        return false;
+    }
+
     std::cout << "[CudaCompute] CUDA Device Initialized:" << std::endl;
     std::cout << "  Device:       " << specs_.name << " (ID: " << specs_.device_id << ")" << std::endl;
     std::cout << "  Compute Cap:  " << specs_.major << "." << specs_.minor << std::endl;
@@ -70,7 +122,6 @@ bool CudaCompute::initialize(int target_device) {
     std::cout << "  PCI Bus:ID:   " << specs_.pci_bus_id << ":" << specs_.pci_device_id << std::endl;
 
     size_t buffer_size = num_elements_ * sizeof(float);
-
     err = cudaMalloc(&d_in_, buffer_size);
     if (err != cudaSuccess) {
         std::cerr << "[CudaCompute] cudaMalloc(d_in_) failed: " << cudaGetErrorString(err) << std::endl;
@@ -109,17 +160,23 @@ bool CudaCompute::initialize(int target_device) {
     return true;
 }
 
+#include <stdexcept>
+
 void CudaCompute::launchCompute(cudaStream_t stream) {
     int block_size = 256;
-    int grid_size = (num_elements_ + block_size - 1) / block_size;
+    size_t blocks_needed = (num_elements_ / block_size) + ((num_elements_ % block_size != 0) ? 1 : 0);
+    int grid_size = static_cast<int>(blocks_needed);
     compute_workload_kernel<<<grid_size, block_size, 0, stream>>>(d_out_, d_in_, num_elements_, compute_intensity_);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("CUDA kernel launch failed: ") + cudaGetErrorString(err));
+    }
 }
 
 void CudaCompute::synchronize(cudaStream_t stream) {
-    if (stream) {
-        cudaStreamSynchronize(stream);
-    } else {
-        cudaDeviceSynchronize();
+    cudaError_t err = stream ? cudaStreamSynchronize(stream) : cudaDeviceSynchronize();
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("CUDA synchronize failed: ") + cudaGetErrorString(err));
     }
 }
 
@@ -144,6 +201,94 @@ bool CudaCompute::verifyOutput() {
     for (size_t idx : check_indices) {
         float expected = compute_expected(h_in_[idx]);
         float observed = h_out_[idx];
+        if (std::abs(observed - expected) > 1e-4f) {
+            std::cerr << "[CudaCompute] Numerical mismatch at index " << idx
+                      << ": observed " << observed << ", expected " << expected << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+void CudaCompute::launchTaggedCompute(uint64_t iteration, cudaStream_t stream) {
+    if (num_elements_ <= 1000) {
+        throw std::runtime_error("CudaCompute element count must be > 1000 (contract violation)");
+    }
+    int block_size = 256;
+    size_t blocks_needed = (num_elements_ / block_size) + ((num_elements_ % block_size != 0) ? 1 : 0);
+    int grid_size = static_cast<int>(blocks_needed);
+    compute_tagged_workload_kernel<<<grid_size, block_size, 0, stream>>>(
+        d_out_, d_in_, num_elements_, compute_intensity_, iteration);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        throw std::runtime_error(std::string("CUDA tagged kernel launch failed: ") + cudaGetErrorString(err));
+    }
+}
+
+bool CudaCompute::verifyTaggedOutput(uint64_t iteration) {
+    if (num_elements_ <= 1000 ||
+        num_elements_ > (std::numeric_limits<size_t>::max() / sizeof(float))) {
+        std::cerr << "[CudaCompute] Verification failed: num_elements out of bounds ("
+                  << num_elements_ << ")" << std::endl;
+        return false;
+    }
+
+    size_t buffer_size = num_elements_ * sizeof(float);
+    cudaError_t err = cudaMemcpy(h_out_, d_out_, buffer_size, cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        std::cerr << "[CudaCompute] cudaMemcpy D2H failed: " << cudaGetErrorString(err) << std::endl;
+        return false;
+    }
+
+
+    // 1. Verify exact 64-bit iteration tag from slot 0 (low) and slot 1 (high)
+    uint32_t low_bits = 0;
+    uint32_t high_bits = 0;
+    std::memcpy(&low_bits, &h_out_[0], sizeof(float));
+    std::memcpy(&high_bits, &h_out_[1], sizeof(float));
+    uint64_t observed_tag = (static_cast<uint64_t>(high_bits) << 32) | static_cast<uint64_t>(low_bits);
+
+    if (observed_tag != iteration) {
+        std::cerr << "[CudaCompute] Tag mismatch: observed " << observed_tag
+                  << " (0x" << std::hex << observed_tag << std::dec
+                  << "), expected " << iteration
+                  << " (0x" << std::hex << iteration << std::dec << ")" << std::endl;
+        return false;
+    }
+    // 2. Full numerical-region finite scan on all indices [2, num_elements_ - 1]
+    // Slots 0 and 1 hold bitwise uint64 tag representation (may be NaN bit patterns) and are excluded.
+    for (size_t i = 2; i < num_elements_; ++i) {
+        if (!std::isfinite(h_out_[i])) {
+            std::cerr << "[CudaCompute] Non-finite numerical value at index " << i
+                      << ": observed " << h_out_[i] << std::endl;
+            return false;
+        }
+    }
+
+    // 3. CPU reference compute for sampled numerical verification
+    auto compute_expected = [this](float val) -> float {
+        for (int i = 0; i < compute_intensity_; ++i) {
+            val = val * 1.0001f + 0.0002f;
+            val = val - std::floor(val);
+        }
+        return val;
+    };
+
+    // Numerical checks at indices >= 2 (slots 0 and 1 hold bitwise tag)
+    size_t check_indices[] = {2, 3, 10, 100, 1000, num_elements_ / 2, num_elements_ - 1};
+    for (size_t idx : check_indices) {
+        if (idx >= num_elements_) {
+            continue;
+        }
+        float observed = h_out_[idx];
+        if (!std::isfinite(observed)) {
+            std::cerr << "[CudaCompute] Non-finite numerical value at index " << idx
+                      << ": observed " << observed << std::endl;
+            return false;
+        }
+        float expected = compute_expected(h_in_[idx]);
         if (std::abs(observed - expected) > 1e-4f) {
             std::cerr << "[CudaCompute] Numerical mismatch at index " << idx
                       << ": observed " << observed << ", expected " << expected << std::endl;

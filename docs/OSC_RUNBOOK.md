@@ -72,7 +72,7 @@ salloc --account=YOUR_OSC_ACCOUNT \
 ```
 
 ### Profiler-Enabled GPU Allocation (Nsight DCGM Contention Handling)
-On OSC systems, `--gres=nsight` is the documented allocation option to mitigate DCGM service contention with NVIDIA profiling tools. Note that raw inventory on Ascend node `NODE_A` observed `RmProfilingAdminOnly: 0` (indicating non-root profiling counters were not restricted by the driver on that host), but `--gres=nsight` remains OSC's supported mechanism to request profiling-safe execution without DCGM interference. Actual hardware counter access remains untested in this project.
+On OSC systems, `--gres=nsight` is the documented allocation option to mitigate DCGM service contention with NVIDIA profiling tools. Raw inventory on Ascend node `NODE_A` observed `RmProfilingAdminOnly: 0`, indicating profiling counters were not restricted to root on that host. EXP-007 subsequently collected GPU metric and context-switch records with site-provided Nsight `2025.6.3` in an authorized user job, without privilege escalation or manual service changes. This does not establish every node's access or DCGM state; retain the documented allocation request and actual diagnostics.
 
 For profiling sessions (where additional time may be required, e.g., 30 minutes):
 
@@ -111,6 +111,41 @@ echo "Assigned Node: $SLURM_JOB_NODELIST"
   ```
 - Confirm that `hostname -f` now reflects the compute node (e.g., `NODE_A`).
 
+### Matching Physical GPU Identity Before Rendering
+
+NVML inventory row count is not the number of allocated CUDA-visible devices. EXP-007's first attempt refused a two-row NVML inventory despite one CUDA-visible GPU. Do not select the first NVML row, remove allocation guards, or equate Slurm indices, CUDA ordinals, EGL indices, and Linux device minors.
+
+EXP-008 changed correctness checking, error propagation, and latency reporting, but the cross-API UUID guard still remains in a separate experiment control rather than integrated in the public probe. Keep historical EXP-007 results unchanged.
+
+### Batch entrypoint paths and EXP-009 allocation budgets
+
+When submitting batch jobs via `sbatch`, Slurm executes a copied script from its internal spool directory where `dirname "$0"` does not point to the repository root. The launcher strictly requires `EXP009_ROOT` (`: "${EXP009_ROOT:?Explicit experiment root required}"`) and fails closed if missing or invalid.
+
+For structured multi-condition matrices like [EXP-009](../research/EXP009_CONTROLLED_SCHEDULING_PLAN.md), total walltime must be computed from the complete execution payload rather than reusing short exploratory windows. The exact ledger budget is 45 minutes = 2,700s:
+- **Build and configure:** 120s (Make, CMake configure/build).
+- **Safety, identity, and fault-injection proofs:** 180s (13 fault rejections, 11 CLI parameter rejections, native tag verification, 12 validation runs).
+- **Worker startup and process initialization:** 60s.
+- **Timed matrix warmup + measurement:** 1,200s (60 windows: 6 conditions × 2 buffer sizes × 5 repetitions @ 5s warmup + 15s window).
+- **Separate profiled runs:** 240s (matched finite profiler captures).
+- **Safety and drain margin:** 900s (process shutdown, IPC pipe drain, logging buffers).
+- **Total allocated budget:** exactly 2,700s = 45 minutes (`--time=00:45:00`).
+
+Under OSC Ascend [batch limit rules](https://www.osc.edu/resources/technical_support/supercomputers/ascend/batch_limit_rules), the `debug` tier allows short testing jobs under 1 hour (`<1h`), while production runs route to the standard `nextgen` partition (max walltime 7 days). An exact 45-minute budget qualifies within debug partition limits when available on Ascend, or runs under `nextgen` without queue inflation.
+
+Example sbatch invocation template:
+```bash
+sbatch --account=YOUR_OSC_ACCOUNT \
+       --nodes=1 \
+       --ntasks=1 \
+       --cpus-per-task=5 \
+       --mem=16G \
+       --gpus-per-node=1 \
+       --time=00:45:00 \
+       --job-name=vuda_exp009 \
+       --export=ALL,EXP009_ROOT="/path/to/vuda-workspace" \
+       run_exp009.sh
+```
+Always keep `YOUR_OSC_ACCOUNT` as an authorized account placeholder. Do not publish private project charge codes, user paths, or hardware UUIDs.
 ---
 
 ## 6. Running System Diagnostics & Collecting Evidence
@@ -172,6 +207,20 @@ Note: Loading an `nvhpc` module (e.g., `nvhpc/25.1`) may alter compiler paths or
 
 **Cross-Cluster Caution:** Do not generalize Ascend module versions (`cuda/12.8.1`, `nvhpc/25.1`) to Cardinal or Pitzer. Always query `module spider` on the target cluster first.
 
+### Selecting the Newer Bundled Profiler Independently
+
+EXP-006 verified that Ascend's `cuda/13.2.1` bundles Nsight Systems `2025.6.3.541`; `nvhpc/25.1` still bundles `2024.7.1.84`. A missing named `nsys` module does not imply a missing profiler. Discover the binary, then restore the established build toolkit:
+
+```bash
+module load cuda/13.2.1
+NSYS_BIN="$(command -v nsys)"
+module load cuda/12.8.1
+nvcc --version
+"$NSYS_BIN" --version
+```
+
+These commands ran in disposable login and allocated shells; EXP-007 later successfully used that selection for native application traces. Use the explicit `NSYS_BIN`, not whichever older `nsys` remains on `PATH`; do not migrate the application to CUDA 13.2 merely to select the profiler. Recheck versions on every new target. See [discovery](../evidence/public/exp006-live-prerequisites.md) and [actual capture](../evidence/public/exp007-profile-results.md).
+
 ### Python & Conda Environment Setup
 Ascend provides a preconfigured Miniconda module:
 ```bash
@@ -207,16 +256,23 @@ When running inside an allocation requested with `--gres=nsight`:
 - **Timing is not active execution:** `--opengl-gpu-workload=true` captures GPU-side batched elapsed timing using `glQueryCounter()`, not per-operation active SM occupancy. Overlapping GL/CUDA ranges do not prove spatial sharing or TSG membership. See [Nsight Systems 2024.7 OpenGL Trace](https://archive.docs.nvidia.com/nsight-systems/2024.7/UserGuide/index.html#opengl-trace).
 - **Supported Command Template:**
   ```bash
-  nsys profile \
+  "${NSYS_BIN:?Select and verify the profiler first}" profile \
        --trace=cuda,opengl,osrt,nvtx \
        --opengl-gpu-workload=true \
-       --sample=cpu \
+       --sample=none \
        --output="vuda_native_probe_${SLURM_JOB_ID}" \
        ./path/to/executable [arguments...]
   ```
 - Resulting `.nsys-rep` files can be downloaded and inspected in the NVIDIA Nsight Systems GUI.
 - Use a new output basename for each capture/export. EXP-003 produced a report but its final SQLite export failed because the destination already existed; preserve that error and both original artifacts.
+- EXP-006 subsequently re-exported the preserved report to an unused file. All 91 table schemas and all 90 non-export-metadata row multisets matched the original SQLite export. The historical export error remains preserved; content correspondence is now verified.
 - Hardware metrics and GPU context-switch collection are separate capabilities. Check supported options and site permissions; `--gres=nsight` addresses DCGM contention, not every profiler permission or undocumented driver operation.
+- **Compatibility gate:** EXP-003 diagnostics warned that Nsight `2024.7.1.84` did not support the installed CUDA-driver compatibility version `13.0` and used `12.6` tracing libraries. Check a site-provided profiler's documented driver support before new decisive collection; do not change the driver or install tools automatically. The recorded toolkit `12.8.1` is a separate version.
+- **Collection is opt-in:** EXP-003 metadata records `COLLECT_GPU_CTX_SW_TRACE=false`; absent switch events are not proof of an unsupported device or denied capability. CPU sampling was also throttled four times. Follow the [staged Gate 4 protocol](../research/GATE4_CAPTURE_PROTOCOL.md), retaining diagnostics and all failed capability checks.
+- **Scheduling telemetry is version/site-specific:** the [2024.7 guide](https://archive.docs.nvidia.com/nsight-systems/2024.7/UserGuide/index.html#gpu-context-switch) states a root-permission/R435.17+ requirement but also describes normal-user records with reduced information for other users. EXP-006's newer CLI help omitted that old root wording; EXP-007 actually collected GPU switches and metrics through the site's existing user-job configuration. Do not generalize old requirements or this success to every tool/node/scope. Ask staff about actual access failures, broader observation, and privacy/isolation; do not use `sudo` or change services/sysctls.
+- **Actual newer capture:** EXP-007 used `--cpuctxsw=none` plus `--gpuctxsw=true --gpu-metrics-devices=cuda-visible --gpu-metrics-set=ga100 --gpu-metrics-frequency=1000` for instrumented runs. The CPU scheduling warning limits CPU thread-state reconstruction, not the populated GPU switch tables. CUDA hardware tracing was unavailable and the tool explicitly used software instrumentation; the old unsupported-driver warning was absent. These are actual outcomes, not a portable permission guarantee.
+- **Interpretation remains bounded:** restore/save events are not exact active-warp boundaries, scheduling IDs are not automatically RM TSG handles, and metric samples are device aggregates. No save-to-restore gap or throughput threshold proves causal switching cost or spatial sharing. The [EXP-007 report](../evidence/public/exp007-profile-results.md) retains all-mode correctness and matched-control gaps.
+- **CUDA hardware backend is architecture-gated:** the [2025.6 guide](https://archive.docs.nvidia.com/nsight-systems/2025.6/UserGuide/index.html#cuda-trace) supports HES tracing on Blackwell-or-later GPUs, not this A100/Ampere target. Existing `--trace=cuda` already requests the default backend; inspect Diagnostics Summary for software fallback. The installed help advertises `cuda`/`cuda-sw`; do not copy `cuda-hw` from a different version. Do not request another A100 allocation or change privileges/toolkits solely to enable unsupported hardware. See the [supported-target template and evidence limit](../evidence/public/exp007-profile-results.md#cuda-hardware-tracing-prerequisites-and-20256-cli-behavior).
 
 ---
 

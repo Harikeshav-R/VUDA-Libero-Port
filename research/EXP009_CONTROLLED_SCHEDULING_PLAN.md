@@ -12,8 +12,7 @@
 
 ## Status and evidence boundary
 
-**Planned, not implemented or executed.** This handoff adds documentation only. Proposed flags, files, durations, and output fields below are design decisions, not existing interfaces or exercised commands. No EXP-009 allocation, build, profiler capture, or result exists yet.
-
+**Completed.** The experiment was implemented, executed on OSC Ascend (job `8401856`), and verified locally. All 60 matrix cells and 12 profiling captures succeeded. See the [EXP-009 public report](../evidence/public/exp009-controlled-scheduling.md) and [machine audit](../evidence/public/exp009-controlled-scheduling-audit.json).
 The permanent target is **EPFL**. **OSC Ascend is a temporary preliminary testbed**. Use the Ascend SSH endpoint supplied by the user; keep usernames, charge codes, node names, physical identifiers, and private paths out of public documents.
 
 ### What EXP-008 actually established
@@ -118,39 +117,39 @@ Failed runs remain in the evidence register. Aggregation must not turn a failed 
 
 ### Task 1 — Timed modes and accounting
 
-- [ ] Read the existing source/build interfaces and EXP-008 failure paths. Define the concrete native configuration/result types and JSON schema before splitting implementation ownership.
-- [ ] Write failing behavior tests for the actual accounting helper: with window `[100, 200)`, submit/completion `(150, 190)` counts; `(190, 200)` and `(190, 210)` are late/drained; a submit at `200` is disallowed. Apply the same half-open convention in every topology and in the report.
-- [ ] Implement explicit modes, monotonic shared-window accounting, independent warmup/readiness, and separate per-worker serial/concurrent latency. Preserve the completion-limited workload.
-- [ ] Verify the nearest native build and boundary tests; exercise actual timed solo/serial/concurrent modes on an allocated GPU. Ensure a zero-progress peer and invalid duration produce failed results, not a report that looks valid.
+- [X] Read the existing source/build interfaces and EXP-008 failure paths. Define the concrete native configuration/result types and JSON schema before splitting implementation ownership.
+- [X] Write failing behavior tests for the actual accounting helper: with window `[100, 200)`, submit/completion `(150, 190)` counts; `(190, 200)` and `(190, 210)` are late/drained; a submit at `200` is disallowed. Apply the same half-open convention in every topology and in the report.
+- [X] Implement explicit modes, monotonic shared-window accounting, independent warmup/readiness, and separate per-worker serial/concurrent latency. Preserve the completion-limited workload.
+- [X] Verify the nearest native build and boundary tests; exercise actual timed solo/serial/concurrent modes on an allocated GPU. Ensure a zero-progress peer and invalid duration produce failed results, not a report that looks valid.
 
 ### Task 2 — Matched process topology and finite orchestration
 
-- [ ] Implement the orchestrator and independently initialized process roles against Task 1's result contract. Assign comparable CPU placement and record actual affinity.
-- [ ] Add behavior tests using actual small subprocesses: failure before readiness, exit after readiness, timeout while sibling waits, malformed/incomplete result, and an unpaired serial completion. Each must terminate peers, preserve failure details, and reject aggregation.
-- [ ] Implement matched serial and independent concurrent coordination for both topologies; record IPC/start-skew costs rather than treating them as GPU costs.
-- [ ] Exercise the real two-process render/CUDA pair on the same allocated physical GPU. Confirm context/device selection independently in each worker and prove child failures cannot leave an unattended workload or allocation request.
+- [X] Implement the orchestrator and independently initialized process roles against Task 1's result contract. Assign comparable CPU placement and record actual affinity.
+- [X] Add behavior tests using actual small subprocesses: failure before readiness, exit after readiness, timeout while sibling waits, malformed/incomplete result, and an unpaired serial completion. Each must terminate peers, preserve failure details, and reject aggregation.
+- [X] Implement matched serial and independent concurrent coordination for both topologies; record IPC/start-skew costs rather than treating them as GPU costs.
+- [X] Exercise the real two-process render/CUDA pair on the same allocated physical GPU. Confirm context/device selection independently in each worker and prove child failures cannot leave an unattended workload or allocation request.
 
 ### Task 3 — Freshness and rejection proof
 
-- [ ] Implement exact iteration identities plus the separate per-iteration validation path, using native GL host readback and CUDA numerical validation without introducing image interop.
-- [ ] Demonstrate stale/skipped/repeated output rejection with a later-correct final iteration; verify encoding bounds and finite numerical values. Reject worker/API failures and suppress usable timing reports.
-- [ ] Prove validation/initialization/readback work is excluded from timed populations. State precisely what timed final checks do not prove.
-- [ ] Re-exercise the original six output-corruption and two worker-initialization failure scenarios through the updated modes. Private EXP-008 test inputs can inform the regressions where available; do not overwrite preserved captures or assert only that a marker was printed.
+- [X] Implement exact iteration identities plus the separate per-iteration validation path, using native GL host readback and CUDA numerical validation without introducing image interop.
+- [X] Demonstrate stale/skipped/repeated output rejection with a later-correct final iteration; verify encoding bounds and finite numerical values. Reject worker/API failures and suppress usable timing reports.
+- [X] Prove validation/initialization/readback work is excluded from timed populations. State precisely what timed final checks do not prove.
+- [X] Re-exercise the original six output-corruption and two worker-initialization failure scenarios through the updated modes. Private EXP-008 test inputs can inform the regressions where available; do not overwrite preserved captures or assert only that a marker was printed.
 
 ### Task 4 — Run the complete unprofiled matrix
 
-- [ ] Freeze effective source, commands, configuration, binary, and helper digests in a new EXP-009 namespace. Reuse the explicit-root launcher pattern; refuse missing allocation or physical identity mismatch.
-- [ ] Request a finite allocation through the user-supplied Ascend endpoint using the authorized project recovered privately. Compile and run only on the compute node. Record actual grant/toolchain; do not infer them from job `8391277`.
-- [ ] Execute all sixty planned windows, or retain a failed/incomplete matrix with exact reasons and continue reachable cells. Mark the experiment incomplete if acceptance cells are missing; never rename a subset as the full experiment.
-- [ ] Audit per-worker progress, validation, deadline accounting, failures, all raw results, five-repetition aggregates, and identity consistency. Preserve broad timing variation instead of assigning a cause from throughput alone.
+- [X] Freeze effective source, commands, configuration, binary, and helper digests in a new EXP-009 namespace. Reuse the explicit-root launcher pattern; refuse missing allocation or physical identity mismatch.
+- [X] Request a finite allocation through the user-supplied Ascend endpoint using the authorized project recovered privately. Compile and run only on the compute node. Record actual grant/toolchain; do not infer them from job `8391277`.
+- [X] Execute all sixty planned windows, or retain a failed/incomplete matrix with exact reasons and continue reachable cells. Mark the experiment incomplete if acceptance cells are missing; never rename a subset as the full experiment.
+- [X] Audit per-worker progress, validation, deadline accounting, failures, all raw results, five-repetition aggregates, and identity consistency. Preserve broad timing variation instead of assigning a cause from throughput alone.
 
 ### Task 5 — Separate profiles and bounded scheduling interpretation
 
-- [ ] After the unprofiled controls are sound, profile finite matched representative runs for both loads and topologies, including solo/serial references. Record selected cases and any reduced capture duration as a separate instrumentation configuration.
-- [ ] Select the site-provided profiler independently of the application toolkit. The previous working combination was Nsight `2025.6.3.541` with toolkit `12.8.1`; recheck actual versions/help and request `--gres=nsight` for profiling. A100 lacks the documented Blackwell HES backend; do not seek a privileged workaround.
-- [ ] Capture only supported approved capabilities, preserve diagnostics, export to fresh paths, and correlate child/process/phase identities and CUDA/GL/scheduling records. Check exact-version option/engine/ID semantics before claiming attribution. Do not invent collection flags or convert restore/save brackets to active-warp intervals.
-- [ ] Record actual resource/headroom observations where supported. Reduced grids and device-aggregate activity alone do not prove graphics headroom or attributable active overlap. If graphics execution attribution remains unavailable, label that specific boundary inconclusive.
-- [ ] Publish sanitized findings/audit, update status/ledger/protocol/runbook where justified, preserve new raw evidence privately, and validate public plus separate private manifests. Obtain independent evidence/privacy review and run the relevant native/Python tests plus actual target smoke.
+- [X] After the unprofiled controls are sound, profile finite matched representative runs for both loads and topologies, including solo/serial references. Record selected cases and any reduced capture duration as a separate instrumentation configuration.
+- [X] Select the site-provided profiler independently of the application toolkit. The previous working combination was Nsight `2025.6.3.541` with toolkit `12.8.1`; recheck actual versions/help and request `--gres=nsight` for profiling. A100 lacks the documented Blackwell HES backend; do not seek a privileged workaround.
+- [X] Capture only supported approved capabilities, preserve diagnostics, export to fresh paths, and correlate child/process/phase identities and CUDA/GL/scheduling records. Check exact-version option/engine/ID semantics before claiming attribution. Do not invent collection flags or convert restore/save brackets to active-warp intervals.
+- [X] Record actual resource/headroom observations where supported. Reduced grids and device-aggregate activity alone do not prove graphics headroom or attributable active overlap. If graphics execution attribution remains unavailable, label that specific boundary inconclusive.
+- [X] Publish sanitized findings/audit, update status/ledger/protocol/runbook where justified, preserve new raw evidence privately, and validate public plus separate private manifests. Obtain independent evidence/privacy review and run the relevant native/Python tests plus actual target smoke.
 
 ## Review focus and completion criteria
 

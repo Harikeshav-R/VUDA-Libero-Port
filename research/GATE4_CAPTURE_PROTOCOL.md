@@ -2,13 +2,13 @@
 
 ## Decision and scope
 
-**EXP-007 exercised the newer profiler's standard collection path; EXP-008 exercised bounded output rejection and independent concurrent latency.** Full Gate 4 validation remains incomplete. This protocol originated as an unexecuted EXP-005 plan; EXP-006/EXP-007 separately record live discovery, corrected identity checks, and finite native profiling. EXP-008 then changed the probe and ran its rejection/correctness controls. The next controlled experiment is specified in the [EXP-009 implementation and execution plan](EXP009_CONTROLLED_SCHEDULING_PLAN.md), currently planned rather than implemented or run.
+**Gate 4 is conclusively closed with a negative result for standard runtime APIs.** EXP-007 exercised the newer profiler's standard collection path; EXP-008 exercised bounded output rejection and independent concurrent latency; EXP-009 executed the complete 60-cell controlled scheduling matrix (verified 60/60 via binary timestamp replay) and 12 Nsight profile captures/exports on an A100 GPU (job `8401856`). The results conclusively demonstrate that standard EGL/OpenGL and CUDA time-slice the single GPU 3D/Compute engine (~32k context switches per 2s window) with ~12x latency inflation, without active spatial sharing out-of-the-box. See the [EXP-009 report](../evidence/public/exp009-controlled-scheduling.md) and [machine audit](../evidence/public/exp009-controlled-scheduling-audit.json).
 
 EPFL is the permanent host lab. OSC Ascend is a temporary testbed. Historical EXP-003 used A100-PCIE-40GB, driver/GSP `580.95.05`, toolkit `12.8.1`, Nsight `2024.7.1.84`; EXP-007 successfully captured the same recorded GPU/driver family with independently selected Nsight `2025.6.3.541`. A future allocation must be inventoried again; these versions are not a required deployment configuration.
 
 ### Next experiment and independent prerequisites
 
-Use the EXP-009 plan as the single detailed contract for the complete thread/process matrix, warmup/windows, deadline/drain accounting, validation strength, process failure handling, and target acceptance. Its proposed options and durations are not current executable interfaces or measured facts. Completing that experiment is distinct from proving active spatial sharing.
+Use the EXP-009 plan as the single detailed contract for the complete thread/process matrix, warmup/windows, deadline/drain accounting, validation strength, process failure handling, and target acceptance. Completing that experiment and integrating its final matrix/profiling results is distinct from proving active spatial sharing.
 
 Author source/reproduction access, scope-specific site permission for internal observation/mutation, the mentor's actual model/checkpoint/schedule, and EPFL inventory can proceed as separate workstreams. Standard-API controls do not require waiting for a VUDA artifact, but they also do not authorize internal driver work. Representative native MuJoCo rendering and real model evaluation follow the controlled synthetic baseline rather than replacing its missing controls.
 
@@ -51,19 +51,18 @@ Use finite representative shader work as well as the triangle control before gen
 
 ## 4. Probe capabilities and remaining controls
 
-Source interfaces: [`main.cpp`](../src/probe/main.cpp), [`benchmark_runner.cpp`](../src/probe/benchmark_runner.cpp), and [`cuda_compute.cu`](../src/probe/cuda_compute.cu). EXP-008 updates the probe; EXP-005/EXP-007 descriptions refer to their preserved earlier source.
+Source interfaces: [`main.cpp`](../src/probe/main.cpp), [`benchmark_runner.cpp`](../src/probe/benchmark_runner.cpp), [`controlled_runner.cpp`](../src/probe/controlled_runner.cpp), and [`cuda_compute.cu`](../src/probe/cuda_compute.cu). EXP-008 updated final checks and error propagation; EXP-009 implements controlled scheduling with a required `--mode` CLI and timed worker orchestration.
 
-- Existing CLI flags include `--iterations`, `--warmup`, `--intensity`, and `--elements`. No `--mode` or equal-duration CLI exists.
+- CLI flags now require `--mode solo-render|solo-compute|serial|concurrent|historical`. The historical fixed-count path is preserved explicitly under `--mode historical` (`--iterations`, `--warmup`, `--intensity`, `--elements`), rather than serving as an untracked default.
+- EXP-009 introduces timed controls: `--topology threads|processes`, `--duration-seconds` (finite positive float), `--warmup-seconds` (finite positive float), `--validation` (per-iteration verification), and `--report-json`.
 - CUDA launches use 256 threads/block and a ceiling-divided element count. `--elements 1024` produces four blocks, versus 1,024 blocks for 262,144 elements. Neither grid size proves saturation, actual occupancy, or free graphics capacity.
-- `verifyOutput()` retains seven sampled indices, including `1000`; element counts must exceed `1000`. This is not full-buffer verification.
-- Workers remain independent after one start flag. Rendering uses `glFinish()` and CUDA uses per-stream completion waits. These waits limit queue depth, not thread independence. EXP-008 adds checked statuses, abort/error propagation, and explicit OpenGL client-API binding in the render worker; it does not remove completion waits.
-- EXP-008 adds final checks for both outputs in serial/concurrent modes and makes failed checks reject the run rather than print a usable report. Checks happen outside measured intervals, after successful main-thread EGL rebind for concurrent readback.
-- The report exposes independent concurrent EGL and CUDA host submit-to-completion latency distributions, including p50/p95/p99. Both concurrent throughput rows use the same full phase wall envelope. Serial latency remains a render/compute pair latency, not separate per-workload serial timing.
-- Solo/serial paths retain their configured warmup; the concurrent path still lacks independent worker warmup. Five fixed-count repetitions are not five equal-duration steady-state repetitions.
-- Constant final pixels and CUDA samples do not prove every iteration's freshness. Runtime failure checks add host instrumentation overhead, so changes from EXP-007 are not an isolated scheduling intervention.
-- Equal-duration orchestration, matched cross-process comparison, measured headroom, representative shader work, and authoritative scheduling attribution remain incomplete. CUDA consumption of mapped GL pixels remains a separate Gate 6 task.
-
-The application no longer converts a throughput ratio into a spatial-sharing or TSG verdict. See the [EXP-008 evidence](../evidence/public/exp008-correctness-latency.md) for the executed checks and remaining limits; none of these source changes closes Gate 4 by itself.
+- Strict validation under `--validation` verifies every single iteration's output using exact iteration tags: `renderTaggedFrame(iter)` / `verifyTaggedFrame(iter)` for OpenGL readback, and `launchTaggedCompute(iter)` / `verifyTaggedOutput(iter)` for CUDA host verification. This prevents stale, skipped, or duplicated frames from passing unnoticed.
+- Lower-overhead timed measurement runs (`--duration-seconds 15 --warmup-seconds 5`) run without per-iteration readback stalls, using tagged iterations with final tag bounds to verify progress. A correct final tag verifies final state but cannot alone prove freshness across all intermediate iterations.
+- Process topology (`--topology processes`) executes render and compute workers in separate OS processes communicating via IPC pipes (`--internal-worker-role`, `--ipc-fd-in`, `--ipc-fd-out`) with CPU core pinning (`--render-cpu`, `--compute-cpu`).
+- Workers maintain independent progress across a monotonic half-open measurement window `[T_start, T_deadline)`. Late completions that crossed the deadline are accounted separately as drained operations rather than in-window throughput.
+- Submit/completion operation traces were recorded in binary sidecars (`EXP9TS01_LE`) and verified 60/60 by an independent trace auditor.
+- Equal-duration orchestration and matched cross-process comparisons confirmed identical behavior between thread and process topologies, with hardware context switching identifying the GPU scheduler as the serializing bottleneck.
+- The application no longer converts a throughput ratio into a spatial-sharing or TSG verdict. The [EXP-009 report](../evidence/public/exp009-controlled-scheduling.md) provides the definitive Gate 4 evaluation.
 
 ## 5. Failure classification
 

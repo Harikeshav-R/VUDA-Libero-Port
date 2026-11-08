@@ -117,11 +117,35 @@ NVML inventory row count is not the number of allocated CUDA-visible devices. EX
 
 EXP-008 changed correctness checking, error propagation, and latency reporting, but the cross-API UUID guard still remains in a separate experiment control rather than integrated in the public probe. Keep historical EXP-007 results unchanged.
 
-### Batch entrypoint paths and planning notes
+### Batch entrypoint paths and EXP-009 allocation budgets
 
-When submitting batch jobs via `sbatch`, Slurm may execute a copied script from its internal spool directory where `dirname "$0"` does not point to the actual repository workspace root. EXP-008's first batch attempt failed when writing its execution log there before compilation occurred. Always pass and require an explicit workspace root variable, and preserve failed job attempts separately rather than overwriting them. See [EXP-008 record](../evidence/public/exp008-correctness-latency.md).
+When submitting batch jobs via `sbatch`, Slurm executes a copied script from its internal spool directory where `dirname "$0"` does not point to the repository root. The launcher strictly requires `EXP009_ROOT` (`: "${EXP009_ROOT:?Explicit experiment root required}"`) and fails closed if missing or invalid.
 
-For structured multi-condition matrices like [EXP-009](../research/EXP009_CONTROLLED_SCHEDULING_PLAN.md), total walltime must be computed from warmup iterations, measurement windows, repeat counts, validation runs, build time, and queue drain buffers; a five-minute smoke test is insufficient for the full experiment budget. This planning note does not allocate new GPU jobs, introduce new probe command-line flags validated by code, change normal allocation guidance, or modify profiler `--gres=nsight` flags. Private cluster endpoints, account strings, node lists, and hardware UUIDs remain excluded from public documentation.
+For structured multi-condition matrices like [EXP-009](../research/EXP009_CONTROLLED_SCHEDULING_PLAN.md), total walltime must be computed from the complete execution payload rather than reusing short exploratory windows. The exact ledger budget is 45 minutes = 2,700s:
+- **Build and configure:** 120s (Make, CMake configure/build).
+- **Safety, identity, and fault-injection proofs:** 180s (13 fault rejections, 11 CLI parameter rejections, native tag verification, 12 validation runs).
+- **Worker startup and process initialization:** 60s.
+- **Timed matrix warmup + measurement:** 1,200s (60 windows: 6 conditions × 2 buffer sizes × 5 repetitions @ 5s warmup + 15s window).
+- **Separate profiled runs:** 240s (matched finite profiler captures).
+- **Safety and drain margin:** 900s (process shutdown, IPC pipe drain, logging buffers).
+- **Total allocated budget:** exactly 2,700s = 45 minutes (`--time=00:45:00`).
+
+Under OSC Ascend [batch limit rules](https://www.osc.edu/resources/technical_support/supercomputers/ascend/batch_limit_rules), the `debug` tier allows short testing jobs under 1 hour (`<1h`), while production runs route to the standard `nextgen` partition (max walltime 7 days). An exact 45-minute budget qualifies within debug partition limits when available on Ascend, or runs under `nextgen` without queue inflation.
+
+Example sbatch invocation template:
+```bash
+sbatch --account=YOUR_OSC_ACCOUNT \
+       --nodes=1 \
+       --ntasks=1 \
+       --cpus-per-task=5 \
+       --mem=16G \
+       --gpus-per-node=1 \
+       --time=00:45:00 \
+       --job-name=vuda_exp009 \
+       --export=ALL,EXP009_ROOT="/path/to/vuda-workspace" \
+       run_exp009.sh
+```
+Always keep `YOUR_OSC_ACCOUNT` as an authorized account placeholder. Do not publish private project charge codes, user paths, or hardware UUIDs.
 ---
 
 ## 6. Running System Diagnostics & Collecting Evidence

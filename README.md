@@ -4,9 +4,10 @@ Research into simultaneous native EGL/OpenGL rendering and CUDA model computatio
 
 **Target Environment:** The permanent research environment and host lab for this project is **EPFL**. All exploration, allocations, and preliminary setup on Ohio Supercomputer Center (OSC) clusters (Ascend, Cardinal, Pitzer) are strictly **temporary preliminary testbeds** while awaiting EPFL GPU access.
 
-**Current state:** Native EGL/CUDA probes and Nsight traces exist for the OSC A100 temporary testbed. Gates 1–3 pass within their recorded scope; Gate 4 is partial because timing ranges do not establish TSG membership or active spatial execution. Gate 5's [technical and policy assessment](research/GATE5_ASSESSMENT.md) is recorded, but runtime channel redirection remains blocked on implementation details and site approval. Gate 6 verifies registration/mapping only, not CUDA-side image consumption or zero-copy implementation.
+**Current state:** Native EGL/CUDA probes and Nsight traces exist for the OSC A100 temporary testbed. Gates 1–3 pass within their recorded scope. Gate 4 is closed with a conclusive negative result for standard runtime APIs: EXP-009 executed all 60 cells of the controlled scheduling matrix and 12 separate Nsight profiles on an A100 GPU (job `8401856`, elapsed 24:35). Massive GPU context switching (~32k/2s) and ~12x latency inflation (from ~27 μs GL / ~10.6 μs CUDA to ~326–337 μs) prove the GPU hardware engine actively time-slices native OpenGL and CUDA rather than executing them spatially. Gate 5's [technical and policy assessment](research/GATE5_ASSESSMENT.md) is recorded, but runtime channel redirection remains blocked on implementation details and site approval. Gate 6 verifies registration/mapping only, not CUDA-side image consumption or zero-copy implementation.
 
 - [Start here: EXP-009 controlled scheduling implementation and execution plan](research/EXP009_CONTROLLED_SCHEDULING_PLAN.md)
+- [EXP-009 controlled scheduling results and telemetry audit](evidence/public/exp009-controlled-scheduling.md)
 - [Current status and next steps](research/STATUS.md)
 - [Research ledger: sources, findings, decisions, questions, experiments](research/RESEARCH_LOG.md)
 - [OSC setup and operating commands](docs/OSC_RUNBOOK.md)
@@ -52,6 +53,14 @@ src/
     cuda_compute.cu
     benchmark_runner.h
     benchmark_runner.cpp
+    controlled_runner.h
+    controlled_runner.cpp
+    measurement_window.h
+    worker_wire_protocol.h
+    operation_trace.h
+    nvtx_wrapper.h
+    device_identity_guard.h
+    device_identity_guard.cpp
   STATUS.md
   RESEARCH_LOG.md
   EXP009_CONTROLLED_SCHEDULING_PLAN.md
@@ -65,6 +74,7 @@ src/
     SAVE_RESEARCH_ARTIFACTS_PLAN.md
 scripts/
   pitzer-diagnostics.sh
+  run-controlled-scheduling.py
 ```
 
 Public research references are labeled derivatives of the original research/export records. They retain source findings and citations while omitting private attachments and workstation paths. Current status and the ledger supersede historical session status.
@@ -96,8 +106,7 @@ EXP-007 completed the native profiling smoke with the newer profiler while prese
 
 EXP-008 adds fatal final-output checks, worker error propagation, and separate concurrent CUDA latency reporting. Its [experiment record](evidence/public/exp008-correctness-latency.md) distinguishes launcher failures, source review, actual target verification, and remaining Gate 4 controls.
 
-Proposed [EXP-009 controlled scheduling plan](research/EXP009_CONTROLLED_SCHEDULING_PLAN.md) specifies equal-duration/warmup/freshness metrics and matched thread/process controls. EXP-009 is a documentation-only design plan; it has not been implemented, allocated, or measured.
-
+EXP-009 implemented controlled scheduling with required `--mode`, timed serial/concurrent thread/process controls, 5s warmup and 15s measurement windows across a 60-window matrix, strict per-iteration validation, and tagged iterations. Job `8401856` completed on target in 24:35, verifying builds (Make and CMake), 13 fault rejections, 11 CLI parameter rejections, 12 per-iteration validation runs, closed-pipe worker rejection, and a 12-cell timed smoke run. All 60 matrix cells were verified 60/60 via raw binary timestamp replay (`EXP9TS01_LE`). All 12 separate Nsight profiling captures and SQLite exports succeeded, demonstrating ~32k context switches per 2s window. See [sanitized findings](evidence/public/exp009-controlled-scheduling.md) and [machine audit](evidence/public/exp009-controlled-scheduling-audit.json).
 ## Public preservation checks
 
 Run from the repository root:

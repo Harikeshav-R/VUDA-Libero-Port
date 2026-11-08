@@ -1,0 +1,95 @@
+{
+  "observed_at_utc": "2026-11-08T00:21:04.224099+00:00",
+  "method": "sqlite3 URI mode=ro; schema-driven event counts, actual diagnostics, integrity checks; no raw metric-value unit decoding.",
+  "profiles": [
+    {
+      "profile": "profile_1024_api",
+      "sqlite_sha256": "6925514a309698f6fffa96b4af23fe0ac91a107c7aa23d3ff406608b95585b7b",
+      "kernel_rows": 341,
+      "gl_rows": 654,
+      "gpu_context_switch_rows": 0,
+      "gpu_metric_rows": 0,
+      "metric_sample_timestamps": 0,
+      "metric_definitions": 0,
+      "nvtx_rows": 6,
+      "warning_messages": [
+        "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults."
+      ],
+      "cuda_hardware_trace_messages": [
+        "CUDA hardware tracing is not supported on this system. A legacy (software instrumented) trace was collected instead."
+      ],
+      "unsupported_driver_warning": false,
+      "switch_capture_setting": "false",
+      "integrity": "ok"
+    },
+    {
+      "profile": "profile_1024_scheduling_metrics",
+      "sqlite_sha256": "d3458963cd9ab56ef4b8a56b56156724aca91cb74950a8abfc5e7016fd04f6c0",
+      "kernel_rows": 341,
+      "gl_rows": 666,
+      "gpu_context_switch_rows": 862,
+      "gpu_metric_rows": 15730,
+      "metric_sample_timestamps": 715,
+      "metric_definitions": 22,
+      "nvtx_rows": 6,
+      "warning_messages": [
+        "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults."
+      ],
+      "cuda_hardware_trace_messages": [
+        "CUDA hardware tracing is not supported on this system. A legacy (software instrumented) trace was collected instead."
+      ],
+      "unsupported_driver_warning": false,
+      "switch_capture_setting": "true",
+      "integrity": "ok"
+    },
+    {
+      "profile": "profile_262144_api",
+      "sqlite_sha256": "5702a955acc0c79edcebe6cff80d5b8f1b0df565871e47b3d17ed305647ca7ec",
+      "kernel_rows": 341,
+      "gl_rows": 654,
+      "gpu_context_switch_rows": 0,
+      "gpu_metric_rows": 0,
+      "metric_sample_timestamps": 0,
+      "metric_definitions": 0,
+      "nvtx_rows": 6,
+      "warning_messages": [
+        "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults."
+      ],
+      "cuda_hardware_trace_messages": [
+        "CUDA hardware tracing is not supported on this system. A legacy (software instrumented) trace was collected instead."
+      ],
+      "unsupported_driver_warning": false,
+      "switch_capture_setting": "false",
+      "integrity": "ok"
+    },
+    {
+      "profile": "profile_262144_scheduling_metrics",
+      "sqlite_sha256": "c535def6a023ba7d37a65d3754ed86a6d925d3f55e20511db3b3b47c29a3c03b",
+      "kernel_rows": 341,
+      "gl_rows": 662,
+      "gpu_context_switch_rows": 874,
+      "gpu_metric_rows": 17138,
+      "metric_sample_timestamps": 779,
+      "metric_definitions": 22,
+      "nvtx_rows": 6,
+      "warning_messages": [
+        "Scheduling information is absent. The thread activity is deduced based on OS runtime libraries traces. This is inaccurate and does not take into account asynchronous interrupts and exception faults."
+      ],
+      "cuda_hardware_trace_messages": [
+        "CUDA hardware tracing is not supported on this system. A legacy (software instrumented) trace was collected instead."
+      ],
+      "unsupported_driver_warning": false,
+      "switch_capture_setting": "true",
+      "integrity": "ok"
+    }
+  ],
+  "queries": {
+    "table_presence": "SELECT name FROM sqlite_master WHERE type='table';",
+    "event_counts": "SELECT COUNT(*) FROM <present table>;",
+    "metric_sample_timestamps": "SELECT COUNT(DISTINCT timestamp) FROM GPU_METRICS;",
+    "diagnostics": "SELECT severity,text FROM DIAGNOSTIC_EVENT ORDER BY timestamp;",
+    "switch_setting": "SELECT name,value FROM META_DATA_CAPTURE WHERE name='COLLECT_GPU_CTX_SW_TRACE';",
+    "integrity": "PRAGMA integrity_check;"
+  },
+  "privacy": "Sanitized derivative. Raw reports/databases remain private; no process/context/device identities, private paths, or raw counter values are published. Content counts are not spatial-sharing proof."
+}
